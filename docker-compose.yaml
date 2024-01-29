@@ -1,0 +1,61 @@
+version: '3.6'
+
+services:
+  pefco-proxy:
+    image: gerdooshell/pefco-proxy:0.5.2.amd
+    networks:
+      - pefco-network
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - pefco-backend
+      - pefco-ui
+
+  pefco-service:
+    image: gerdooshell/pefco-service:0.1.1.amd
+    networks:
+      - pefco-network
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        order: start-first
+
+  pefco-ui:
+    image: gerdooshell/pefco-ui:0.2.0.amd
+    networks:
+      - pefco-network
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=pefco
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - pefco-network
+    deploy:
+      update_config:
+        parallelism: 1
+        order: start-first
+    ports:
+      - "5432:5432"
+
+networks:
+  pefco-network:
+    driver: overlay
+volumes:
+  pgdata:
