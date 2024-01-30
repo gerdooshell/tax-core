@@ -6,13 +6,10 @@ import (
 	dataProvider "github.com/gerdooshell/tax-communication/src/data-provider"
 	abCredits "github.com/gerdooshell/tax-core/entities/canada/alberta/credits"
 	bcCredits "github.com/gerdooshell/tax-core/entities/canada/bc/credits"
-	"github.com/gerdooshell/tax-core/entities/canada/federal/credits"
-	"github.com/gerdooshell/tax-core/entities/canada/shared"
+	federalEntities "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
+	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"log"
 	"time"
 )
 
@@ -35,55 +32,50 @@ type dataService struct {
 	timeout         time.Duration
 }
 
-func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan shared.CanadaPensionPlan, <-chan error) {
+func (ds *dataService) genDataServiceClient() (dataProvider.GRPCDataProviderClient, error) {
+	connection, err := grpc.Dial(ds.dataProviderUrl, grpc.WithInsecure())
+	if err != nil {
+		return nil, fmt.Errorf("connection failed, error: \"%v\"", err)
+	}
+	client := dataProvider.NewGRPCDataProviderClient(connection)
+	if err = connection.Close(); err != nil {
+		return nil, fmt.Errorf("failed closing connection, error: %v\n", err)
+	}
+	return client, nil
+}
+
+func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntities.CanadaPensionPlan, <-chan error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan shared.EmploymentInsurancePremium, <-chan error) {
+func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan sharedEntities.EmploymentInsurancePremium, <-chan error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan credits.BasicPersonalAmount, <-chan error) {
-	out := make(chan credits.BasicPersonalAmount)
+func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan federalEntities.BasicPersonalAmount, <-chan error) {
+	out := make(chan federalEntities.BasicPersonalAmount)
 	errChan := make(chan error)
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		connection, err := grpc.Dial(ds.dataProviderUrl, grpc.WithInsecure())
+		client, err := ds.genDataServiceClient()
 		if err != nil {
-			fmt.Println("connection failed, error:", err)
+			errChan <- err
+			return
 		}
-		defer func() {
-			if err = connection.Close(); err != nil {
-				log.Printf("failed closing connection, error: %v\n", err)
-			}
-		}()
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
-		client := dataProvider.NewGRPCDataProviderClient(connection)
 		req := &dataProvider.FederalBPARequest{
 			Year: int32(year),
 		}
+		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
+		defer cancel()
 		resp, err := client.GetFederalBPA(ctx, req)
 		if err != nil {
-			statusError, ok := status.FromError(err)
-			if ok {
-				switch statusError.Code() {
-				case codes.InvalidArgument:
-					// handle the logic
-				case codes.DeadlineExceeded:
-					// handle the logic
-				default:
-					//handle the logic
-				}
-			} else {
-				fmt.Printf("failed getting user info from server, error: %v\n", err)
-			}
 			errChan <- err
+			return
 		}
-		out <- credits.BasicPersonalAmount{
+		out <- federalEntities.BasicPersonalAmount{
 			MaxBPAAmount: resp.GetMaxBPAAmount(),
 			MaxBPAIncome: resp.GetMaxBPAIncome(),
 			MinBPAAmount: resp.GetMinBPAAmount(),
@@ -93,14 +85,63 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan cred
 	return out, errChan
 }
 
-func (ds *dataService) GetFederalTaxBrackets(ctx context.Context, year int) (<-chan []shared.TaxBracket, <-chan error) {
-	//TODO implement me
-	panic("implement me")
+func (ds *dataService) GetFederalTaxBrackets(ctx context.Context, year int) (<-chan []sharedEntities.TaxBracket, <-chan error) {
+	out := make(chan []sharedEntities.TaxBracket)
+	errChan := make(chan error)
+	go func() {
+		defer close(out)
+		defer close(errChan)
+		client, err := ds.genDataServiceClient()
+		if err != nil {
+			errChan <- err
+			return
+		}
+		req := &dataProvider.FederalTaxBracketsRequest{
+			Year: int32(year),
+		}
+		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
+		defer cancel()
+		resp, err := client.GetFederalTaxBrackets(ctx, req)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		rates := resp.GetRates()
+		levels := resp.GetBrackets()
+		brackets, err := sharedEntities.FromArray(rates, levels)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		out <- brackets
+	}()
+	return out, errChan
 }
 
-func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan credits.CanadaEmploymentAmount, <-chan error) {
-	//TODO implement me
-	panic("implement me")
+func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan federalEntities.CanadaEmploymentAmount, <-chan error) {
+	out := make(chan federalEntities.CanadaEmploymentAmount)
+	errChan := make(chan error)
+	go func() {
+		defer close(out)
+		defer close(errChan)
+		client, err := ds.genDataServiceClient()
+		if err != nil {
+			errChan <- err
+			return
+		}
+		req := &dataProvider.CanadaEmploymentAmountRequest{
+			Year: int32(year),
+		}
+		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
+		defer cancel()
+		resp, err := client.GetCEA(ctx, req)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		out <- federalEntities.CanadaEmploymentAmount{Value: resp.GetCeaValue()}
+	}()
+	return out, errChan
 }
 
 func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits.BasicPersonalAmount, <-chan error) {
@@ -108,7 +149,7 @@ func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits
 	panic("implement me")
 }
 
-func (ds *dataService) GetBCTaxBrackets(ctx context.Context, year int) (<-chan []shared.TaxBracket, <-chan error) {
+func (ds *dataService) GetBCTaxBrackets(ctx context.Context, year int) (<-chan []sharedEntities.TaxBracket, <-chan error) {
 	//TODO implement me
 	panic("implement me")
 }
@@ -118,7 +159,7 @@ func (ds *dataService) GetAlbertaBPA(ctx context.Context, year int) (<-chan abCr
 	panic("implement me")
 }
 
-func (ds *dataService) GetAlbertaTaxBrackets(ctx context.Context, year int) (<-chan []shared.TaxBracket, <-chan error) {
+func (ds *dataService) GetAlbertaTaxBrackets(ctx context.Context, year int) (<-chan []sharedEntities.TaxBracket, <-chan error) {
 	//TODO implement me
 	panic("implement me")
 }
