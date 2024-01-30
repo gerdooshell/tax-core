@@ -17,7 +17,7 @@ type AlbertaTaxCalculator interface {
 
 func NewAlbertaTaxCalculator() AlbertaTaxCalculator {
 	return &taxCalculatorImpl{
-		dataProvider: dataService.NewDataProviderService("localhost:45432"),
+		dataProvider: dataService.NewDataProviderService(),
 	}
 }
 

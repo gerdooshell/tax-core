@@ -20,9 +20,9 @@ type DataService interface {
 	dataAccess.AllCanadaTaxData
 }
 
-func NewDataProviderService(dataProviderUrl string) DataService {
+func NewDataProviderService() DataService {
 	return &dataService{
-		dataProviderUrl: dataProviderUrl,
+		dataProviderUrl: "localhost:45432",
 		timeout:         time.Second * 3,
 	}
 }
@@ -38,9 +38,9 @@ func (ds *dataService) generateDataServiceClient() (dataProvider.GRPCDataProvide
 		return nil, fmt.Errorf("connection failed, error: \"%v\"", err)
 	}
 	client := dataProvider.NewGRPCDataProviderClient(connection)
-	if err = connection.Close(); err != nil {
-		return nil, fmt.Errorf("failed closing connection, error: %v\n", err)
-	}
+	//if err = connection.Close(); err != nil {
+	//	return nil, fmt.Errorf("failed closing connection, error: %v\n", err)
+	//}
 	return client, nil
 }
 

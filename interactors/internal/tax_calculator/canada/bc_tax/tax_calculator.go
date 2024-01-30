@@ -17,7 +17,7 @@ type BritishColumbiaTaxCalculator interface {
 
 func NewBCTaxCalculator() BritishColumbiaTaxCalculator {
 	return &taxCalculatorImpl{
-		dataProvider: dataService.NewDataProviderService("localhost:45432"),
+		dataProvider: dataService.NewDataProviderService(),
 	}
 }
 
