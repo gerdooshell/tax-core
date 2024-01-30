@@ -2,7 +2,7 @@ package federal_tax
 
 import (
 	"context"
-	mockService "github.com/gerdooshell/tax-core/data_access/mock-service"
+	dataService "github.com/gerdooshell/tax-core/data-access"
 	"github.com/gerdooshell/tax-core/entities/canada/federal/credits"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
 	"github.com/gerdooshell/tax-core/interactors/data_access"
@@ -17,7 +17,7 @@ type FederalTaxCalculator interface {
 
 func NewTaxCalculator() FederalTaxCalculator {
 	return &federalTaxCalculatorImpl{
-		dataProvider: mockService.NewPostgresServiceMock(),
+		dataProvider: dataService.NewDataProviderService("localhost:45432"),
 	}
 }
 

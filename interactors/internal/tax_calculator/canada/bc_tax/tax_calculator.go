@@ -2,7 +2,7 @@ package bc_tax
 
 import (
 	"context"
-	mockService "github.com/gerdooshell/tax-core/data_access/mock-service"
+	dataService "github.com/gerdooshell/tax-core/data-access"
 	"github.com/gerdooshell/tax-core/entities/canada/bc/credits"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
 	"github.com/gerdooshell/tax-core/interactors/data_access"
@@ -17,8 +17,7 @@ type BritishColumbiaTaxCalculator interface {
 
 func NewBCTaxCalculator() BritishColumbiaTaxCalculator {
 	return &taxCalculatorImpl{
-		//dataProvider: postgresService.NewPostgresService(),
-		dataProvider: mockService.NewPostgresServiceMock(),
+		dataProvider: dataService.NewDataProviderService("localhost:45432"),
 	}
 }
 

@@ -2,7 +2,7 @@ package mockService
 
 import (
 	"context"
-	"github.com/gerdooshell/tax-core/data_access"
+	"github.com/gerdooshell/tax-core/data-access"
 	abCredits "github.com/gerdooshell/tax-core/entities/canada/alberta/credits"
 	bcCredits "github.com/gerdooshell/tax-core/entities/canada/bc/credits"
 	fedCredits "github.com/gerdooshell/tax-core/entities/canada/federal/credits"

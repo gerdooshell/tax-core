@@ -2,7 +2,7 @@ package alberta_tax
 
 import (
 	"context"
-	mockService "github.com/gerdooshell/tax-core/data_access/mock-service"
+	dataService "github.com/gerdooshell/tax-core/data-access"
 	"github.com/gerdooshell/tax-core/entities/canada/alberta/credits"
 	"github.com/gerdooshell/tax-core/entities/canada/shared"
 	"github.com/gerdooshell/tax-core/interactors/data_access"
@@ -17,7 +17,7 @@ type AlbertaTaxCalculator interface {
 
 func NewAlbertaTaxCalculator() AlbertaTaxCalculator {
 	return &taxCalculatorImpl{
-		dataProvider: mockService.NewPostgresServiceMock(),
+		dataProvider: dataService.NewDataProviderService("localhost:45432"),
 	}
 }
 
