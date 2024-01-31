@@ -22,7 +22,7 @@ type DataService interface {
 
 func NewDataProviderService() DataService {
 	return &dataService{
-		dataProviderUrl: "localhost:45432",
+		dataProviderUrl: "data-provider:45432",
 		timeout:         time.Second * 3,
 	}
 }
