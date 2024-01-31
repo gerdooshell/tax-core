@@ -29,19 +29,23 @@ func NewDataProviderService() DataService {
 
 type dataService struct {
 	dataProviderUrl string
+	grpcClient      dataProvider.GRPCDataProviderClient
 	timeout         time.Duration
 }
 
-func (ds *dataService) generateDataServiceClient() (dataProvider.GRPCDataProviderClient, error) {
+func (ds *dataService) generateDataServiceClient() error {
+	if ds.grpcClient != nil {
+		return nil
+	}
 	connection, err := grpc.Dial(ds.dataProviderUrl, grpc.WithInsecure())
 	if err != nil {
-		return nil, fmt.Errorf("connection failed, error: \"%v\"", err)
+		return fmt.Errorf("connection failed, error: \"%v\"", err)
 	}
-	client := dataProvider.NewGRPCDataProviderClient(connection)
+	ds.grpcClient = dataProvider.NewGRPCDataProviderClient(connection)
 	//if err = connection.Close(); err != nil {
 	//	return nil, fmt.Errorf("failed closing connection, error: %v\n", err)
 	//}
-	return client, nil
+	return nil
 }
 
 func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntities.CanadaPensionPlan, <-chan error) {
@@ -50,7 +54,7 @@ func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntit
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		client, err := ds.generateDataServiceClient()
+		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
 			return
@@ -60,7 +64,7 @@ func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntit
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()
-		resp, err := client.GetCanadaPensionPlan(ctx, req)
+		resp, err := ds.grpcClient.GetCanadaPensionPlan(ctx, req)
 		if err != nil {
 			errChan <- err
 			return
@@ -87,7 +91,7 @@ func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan share
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		client, err := ds.generateDataServiceClient()
+		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
 			return
@@ -97,7 +101,7 @@ func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan share
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()
-		resp, err := client.GetEmploymentInsurancePremium(ctx, req)
+		resp, err := ds.grpcClient.GetEmploymentInsurancePremium(ctx, req)
 		if err != nil {
 			errChan <- err
 			return
@@ -117,7 +121,7 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan fede
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		client, err := ds.generateDataServiceClient()
+		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
 			return
@@ -127,7 +131,7 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan fede
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()
-		resp, err := client.GetFederalBPA(ctx, req)
+		resp, err := ds.grpcClient.GetFederalBPA(ctx, req)
 		if err != nil {
 			errChan <- err
 			return
@@ -148,7 +152,7 @@ func (ds *dataService) GetFederalTaxBrackets(ctx context.Context, year int) (<-c
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		client, err := ds.generateDataServiceClient()
+		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
 			return
@@ -158,7 +162,7 @@ func (ds *dataService) GetFederalTaxBrackets(ctx context.Context, year int) (<-c
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()
-		resp, err := client.GetFederalTaxBrackets(ctx, req)
+		resp, err := ds.grpcClient.GetFederalTaxBrackets(ctx, req)
 		if err != nil {
 			errChan <- err
 			return
@@ -181,7 +185,7 @@ func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan federalEnti
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		client, err := ds.generateDataServiceClient()
+		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
 			return
@@ -191,7 +195,7 @@ func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan federalEnti
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()
-		resp, err := client.GetCEA(ctx, req)
+		resp, err := ds.grpcClient.GetCEA(ctx, req)
 		if err != nil {
 			errChan <- err
 			return
@@ -207,7 +211,7 @@ func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		client, err := ds.generateDataServiceClient()
+		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
 			return
@@ -217,7 +221,7 @@ func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()
-		resp, err := client.GetBritishColumbiaBPA(ctx, req)
+		resp, err := ds.grpcClient.GetBritishColumbiaBPA(ctx, req)
 		if err != nil {
 			errChan <- err
 			return
@@ -233,7 +237,7 @@ func (ds *dataService) GetBCTaxBrackets(ctx context.Context, year int) (<-chan [
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		client, err := ds.generateDataServiceClient()
+		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
 			return
@@ -243,7 +247,7 @@ func (ds *dataService) GetBCTaxBrackets(ctx context.Context, year int) (<-chan [
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()
-		resp, err := client.GetBritishColumbiaTaxBrackets(ctx, req)
+		resp, err := ds.grpcClient.GetBritishColumbiaTaxBrackets(ctx, req)
 		if err != nil {
 			errChan <- err
 			return
@@ -266,7 +270,7 @@ func (ds *dataService) GetAlbertaBPA(ctx context.Context, year int) (<-chan abCr
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		client, err := ds.generateDataServiceClient()
+		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
 			return
@@ -276,7 +280,7 @@ func (ds *dataService) GetAlbertaBPA(ctx context.Context, year int) (<-chan abCr
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()
-		resp, err := client.GetAlbertaBPA(ctx, req)
+		resp, err := ds.grpcClient.GetAlbertaBPA(ctx, req)
 		if err != nil {
 			errChan <- err
 			return
@@ -292,7 +296,7 @@ func (ds *dataService) GetAlbertaTaxBrackets(ctx context.Context, year int) (<-c
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		client, err := ds.generateDataServiceClient()
+		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
 			return
@@ -302,7 +306,7 @@ func (ds *dataService) GetAlbertaTaxBrackets(ctx context.Context, year int) (<-c
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()
-		resp, err := client.GetAlbertaTaxBrackets(ctx, req)
+		resp, err := ds.grpcClient.GetAlbertaTaxBrackets(ctx, req)
 		if err != nil {
 			errChan <- err
 			return
