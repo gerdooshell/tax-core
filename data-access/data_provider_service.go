@@ -165,7 +165,7 @@ func (ds *dataService) GetFederalTaxBrackets(ctx context.Context, year int) (<-c
 		}
 		rates := resp.GetRates()
 		levels := resp.GetLevels()
-		brackets, err := sharedEntities.FromArray(rates, levels)
+		brackets, err := sharedEntities.FromArray(levels, rates)
 		if err != nil {
 			errChan <- err
 			return
@@ -250,7 +250,7 @@ func (ds *dataService) GetBCTaxBrackets(ctx context.Context, year int) (<-chan [
 		}
 		rates := resp.GetRates()
 		levels := resp.GetLevels()
-		brackets, err := sharedEntities.FromArray(rates, levels)
+		brackets, err := sharedEntities.FromArray(levels, rates)
 		if err != nil {
 			errChan <- err
 			return
@@ -309,7 +309,7 @@ func (ds *dataService) GetAlbertaTaxBrackets(ctx context.Context, year int) (<-c
 		}
 		rates := resp.GetRates()
 		levels := resp.GetLevels()
-		brackets, err := sharedEntities.FromArray(rates, levels)
+		brackets, err := sharedEntities.FromArray(levels, rates)
 		if err != nil {
 			errChan <- err
 			return
