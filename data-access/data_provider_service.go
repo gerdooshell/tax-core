@@ -8,6 +8,7 @@ import (
 	bcCredits "github.com/gerdooshell/tax-core/entities/canada/bc/credits"
 	federalEntities "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
+	"github.com/gerdooshell/tax-core/environment"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
 	"google.golang.org/grpc"
 	"time"
@@ -22,9 +23,16 @@ type DataService interface {
 
 func NewDataProviderService() DataService {
 	return &dataService{
-		dataProviderUrl: "data-provider:45432",
+		dataProviderUrl: getDataProviderUrl(),
 		timeout:         time.Second * 3,
 	}
+}
+
+func getDataProviderUrl() string {
+	if environment.GetEnvironment() == environment.Dev {
+		return "localhost:45432"
+	}
+	return "data-provider:45432"
 }
 
 type dataService struct {
