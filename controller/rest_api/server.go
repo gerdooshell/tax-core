@@ -3,11 +3,12 @@ package restApi
 import (
 	"flag"
 	"fmt"
-	"github.com/gerdooshell/tax-core/controller/rest_api/handlers"
-	taxCalculator "github.com/gerdooshell/tax-core/controller/rest_api/handlers/tax_calculator"
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/gerdooshell/tax-core/controller/rest_api/handlers"
+	taxCalculator "github.com/gerdooshell/tax-core/controller/rest_api/handlers/tax_calculator"
 )
 
 func ServeHTTP() {
@@ -46,6 +47,11 @@ func launchHTTPServer() {
 
 func createHTTPHandler(handler handlers.Handler) http.Handler {
 	hf := func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				fmt.Println("Recovered fatal error:", rec)
+			}
+		}()
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
