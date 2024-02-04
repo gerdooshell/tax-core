@@ -8,4 +8,5 @@ type TaxDataService interface {
 	dataAccess.FederalTaxData
 	dataAccess.BCTaxData
 	dataAccess.AlbertaTaxData
+	dataAccess.TaxMargin
 }
