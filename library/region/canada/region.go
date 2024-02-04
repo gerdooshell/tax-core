@@ -19,25 +19,25 @@ const (
 
 func GetProvinceFromString(province string) (pr Province, err error) {
 	switch province {
-	case "federal":
+	case "federal", "fed":
 		pr = Federal
-	case "alberta":
+	case "alberta", "ab":
 		pr = Alberta
-	case "british_columbia":
+	case "british_columbia", "bc":
 		pr = BritishColumbia
-	case "ontario":
+	case "ontario", "on":
 		pr = Ontario
-	case "manitoba":
+	case "manitoba, mb":
 		pr = Manitoba
-	case "quebec":
+	case "quebec", "qc", "pq":
 		pr = Quebec
-	case "saskatchewan":
+	case "saskatchewan", "sk":
 		pr = Saskatchewan
-	case "nova_scotia":
+	case "nova_scotia", "ns":
 		pr = NovaScotia
-	case "new_brunswick":
+	case "new_brunswick", "nb":
 		pr = NewBrunswick
-	case "yukon":
+	case "yukon", "yk":
 		pr = Yukon
 	default:
 		pr = Federal
