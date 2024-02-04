@@ -7,6 +7,8 @@ require (
 	google.golang.org/grpc v1.61.0
 )
 
+require github.com/gorilla/mux v1.8.1 // indirect
+
 require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	golang.org/x/net v0.18.0 // indirect
