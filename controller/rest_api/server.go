@@ -3,6 +3,8 @@ package restApi
 import (
 	"flag"
 	"fmt"
+	taxMargin "github.com/gerdooshell/tax-core/controller/rest_api/handlers/tax_margin"
+	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"net/http"
@@ -12,12 +14,14 @@ import (
 )
 
 func ServeHTTP() {
+	muxRouter := mux.NewRouter()
 	apiHandlers := make([]handlers.Handler, 0, 3)
 	apiHandlers = append(apiHandlers, taxCalculator.NewTaxCalculatorController())
+	apiHandlers = append(apiHandlers, taxMargin.NewTaxMarginController())
 	for _, handler := range apiHandlers {
-		RegisterHTTP(handler)
+		RegisterMuxHTTP(muxRouter, handler)
 	}
-	launchHTTPServer()
+	launchHTTPServer(muxRouter)
 }
 
 func RegisterHTTP(handler handlers.Handler) {
@@ -39,10 +43,29 @@ func RegisterHTTP(handler handlers.Handler) {
 	})
 }
 
-func launchHTTPServer() {
+func RegisterMuxHTTP(muxRouter *mux.Router, handler handlers.Handler) {
+	h := createHTTPHandler(handler)
+	muxRouter.HandleFunc(handler.URL(), func(w http.ResponseWriter, r *http.Request) {
+		notAllowed := true
+		for _, method := range append(handler.Methods(), http.MethodOptions) {
+			if method == r.Method {
+				w.Header().Add("Access-Control-Allow-Origin", "*")
+				w.Header().Add("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, x-api-key")
+				h.ServeHTTP(w, r)
+				notAllowed = false
+			}
+		}
+		if notAllowed {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+		return
+	})
+}
+
+func launchHTTPServer(handler http.Handler) {
 	addrFlag := flag.String("addr", ":8185", "address to run unified server on")
 	fmt.Println("http server ready")
-	_ = http.ListenAndServe(*addrFlag, nil)
+	_ = http.ListenAndServe(*addrFlag, handler)
 }
 
 func createHTTPHandler(handler handlers.Handler) http.Handler {
