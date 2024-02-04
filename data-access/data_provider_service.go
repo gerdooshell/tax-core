@@ -10,6 +10,7 @@ import (
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
 	"github.com/gerdooshell/tax-core/environment"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
+	"github.com/gerdooshell/tax-core/library/region/canada"
 	"google.golang.org/grpc"
 	"time"
 )
@@ -19,6 +20,7 @@ type DataService interface {
 	dataAccess.BCTaxData
 	dataAccess.AlbertaTaxData
 	dataAccess.AllCanadaTaxData
+	dataAccess.TaxMargin
 }
 
 func NewDataProviderService() DataService {
@@ -54,6 +56,41 @@ func (ds *dataService) generateDataServiceClient() error {
 	//	return nil, fmt.Errorf("failed closing connection, error: %v\n", err)
 	//}
 	return nil
+}
+
+func (ds *dataService) PostCombinedMarginalBrackets(ctx context.Context, brackets []sharedEntities.TaxBracket, year int, province canada.Province) <-chan error {
+	errChan := make(chan error)
+	go func() {
+		defer close(errChan)
+		err := ds.generateDataServiceClient()
+		if err != nil {
+			errChan <- err
+			return
+		}
+		req := &dataProvider.CreateCombinedMarginalBracketsRequest{
+			Province: string(province),
+		}
+		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
+		defer cancel()
+		resp, err := ds.grpcClient.GetCanadaPensionPlan(ctx, req)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		out <- sharedEntities.CanadaPensionPlan{
+			Year:                            year,
+			BasicExemption:                  resp.GetBasicExemption(),
+			BasicRateEmployee:               resp.GetBasicRateEmployee(),
+			BasicRateEmployer:               resp.GetBasicRateEmployer(),
+			FirstAdditionalRateEmployee:     resp.GetFirstAdditionalRateEmployee(),
+			FirstAdditionalRateEmployer:     resp.GetFirstAdditionalRateEmployer(),
+			SecondAdditionalRateEmployee:    resp.GetSecondAdditionalRateEmployee(),
+			SecondAdditionalRateEmployer:    resp.GetSecondAdditionalRateEmployer(),
+			MaxPensionableEarning:           resp.GetMaxPensionableEarning(),
+			AdditionalMaxPensionableEarning: resp.GetAdditionalMaxPensionableEarning(),
+		}
+	}()
+	return out, errChan
 }
 
 func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntities.CanadaPensionPlan, <-chan error) {
