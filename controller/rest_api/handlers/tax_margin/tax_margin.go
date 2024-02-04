@@ -6,17 +6,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/gerdooshell/tax-core/controller/internal"
 	"github.com/gerdooshell/tax-core/controller/internal/routes"
 	restApi "github.com/gerdooshell/tax-core/controller/rest_api/handlers"
 	"github.com/gerdooshell/tax-core/entities/canada/shared"
 	canadaTaxMarginCalculator "github.com/gerdooshell/tax-core/interactors/controller_access/canada_tax_margin_calculator"
 	"github.com/gerdooshell/tax-core/library/region/canada"
+
 	"github.com/gorilla/mux"
-	"io"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type taxMargin struct {
