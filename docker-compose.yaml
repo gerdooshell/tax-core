@@ -18,7 +18,7 @@ services:
       - pefco-ui
 
   tax-core:
-    image: gerdooshell/tax-core:0.2.0.amd
+    image: gerdooshell/tax-core:0.3.0.amd
     networks:
       - tax-network
     deploy:
@@ -28,7 +28,7 @@ services:
         order: start-first
 
   data-provider:
-    image: gerdooshell/data-provider:0.2.0.amd
+    image: gerdooshell/data-provider:0.3.1
     networks:
       - tax-network
     deploy:
@@ -38,7 +38,7 @@ services:
         order: start-first
 
   pefco-ui:
-    image: gerdooshell/pefco-ui:0.4.0.amd
+    image: gerdooshell/pefco-ui:0.5.0.amd
     networks:
       - tax-network
     deploy:
