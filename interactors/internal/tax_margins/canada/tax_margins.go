@@ -2,6 +2,7 @@ package canadaTaxMrgins
 
 import (
 	"context"
+	"fmt"
 
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	"github.com/gerdooshell/tax-core/entities/canada/shared"
@@ -27,7 +28,14 @@ type taxMarginsCa struct {
 }
 
 func (tm *taxMarginsCa) GetCombinedMarginalBrackets(ctx context.Context, input marginDS.Input) (out marginDS.Output, err error) {
-	// TODO: try to read from database first
+	bracketsCahn, errChan := tm.dataProvider.GetCombinedMarginalBrackets(ctx, input.Year, input.Province)
+	select {
+	case getError := <-errChan:
+		fmt.Printf("failed getting combined marginal brackets: %v\n", getError)
+	case brackets := <-bracketsCahn:
+		out.Brackets = brackets
+		return
+	}
 	errRegChan := tm.getFederalBrackets(ctx, input)
 	errFedChan := tm.getRegionalBrackets(ctx, input)
 	if err = <-errFedChan; err != nil {

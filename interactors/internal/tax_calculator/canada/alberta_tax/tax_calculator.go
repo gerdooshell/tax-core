@@ -9,6 +9,7 @@ import (
 	abDS "github.com/gerdooshell/tax-core/interactors/internal/tax_calculator/canada/alberta_tax/data_structures"
 	shared2 "github.com/gerdooshell/tax-core/interactors/internal/tax_calculator/canada/shared"
 	"github.com/gerdooshell/tax-core/library/mathHelper"
+	"github.com/gerdooshell/tax-core/library/region/canada"
 )
 
 type AlbertaTaxCalculator interface {
@@ -119,7 +120,7 @@ func (ab *taxCalculatorImpl) processBPA(ctx context.Context, input *abDS.Input) 
 
 func (ab *taxCalculatorImpl) processTaxBrackets(ctx context.Context, input *abDS.Input) <-chan error {
 	out := make(chan error)
-	bracketsChan, bracketsErr := ab.dataProvider.GetAlbertaTaxBrackets(ctx, input.Year)
+	bracketsChan, bracketsErr := ab.dataProvider.GetTaxBrackets(ctx, input.Year, canada.Alberta)
 	go func() {
 		defer close(out)
 		var err error

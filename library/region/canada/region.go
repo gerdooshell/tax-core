@@ -5,16 +5,16 @@ import "fmt"
 type Province string
 
 const (
-	Federal         Province = "Federal"
-	Alberta         Province = "Alberta"
-	BritishColumbia Province = "British Columbia"
-	Manitoba        Province = "Manitoba"
-	Ontario         Province = "Ontario"
-	NovaScotia      Province = "Nova Scotia"
-	NewBrunswick    Province = "New Brunswick"
-	Quebec          Province = "Quebec"
-	Saskatchewan    Province = "Saskatchewan"
-	Yukon           Province = "Yukon"
+	Federal         Province = "federal"
+	Alberta         Province = "alberta"
+	BritishColumbia Province = "british-columbia"
+	Manitoba        Province = "manitoba"
+	Ontario         Province = "ontario"
+	NovaScotia      Province = "nova-scotia"
+	NewBrunswick    Province = "new-brunswick"
+	Quebec          Province = "quebec"
+	Saskatchewan    Province = "saskatchewan"
+	Yukon           Province = "yukon"
 )
 
 func GetProvinceFromString(province string) (pr Province, err error) {
@@ -23,7 +23,7 @@ func GetProvinceFromString(province string) (pr Province, err error) {
 		pr = Federal
 	case "alberta", "ab":
 		pr = Alberta
-	case "british_columbia", "bc":
+	case "british-columbia", "bc":
 		pr = BritishColumbia
 	case "ontario", "on":
 		pr = Ontario
@@ -33,11 +33,11 @@ func GetProvinceFromString(province string) (pr Province, err error) {
 		pr = Quebec
 	case "saskatchewan", "sk":
 		pr = Saskatchewan
-	case "nova_scotia", "ns":
+	case "nova-scotia", "ns":
 		pr = NovaScotia
-	case "new_brunswick", "nb":
+	case "new-brunswick", "nb":
 		pr = NewBrunswick
-	case "yukon", "yk":
+	case "yukon", "yt":
 		pr = Yukon
 	default:
 		pr = Federal

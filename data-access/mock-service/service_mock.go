@@ -18,6 +18,16 @@ func NewPostgresServiceMock() dataAccess.DataProviderService {
 type postgresServiceMock struct {
 }
 
+func (pg *postgresServiceMock) GetTaxBrackets(ctx context.Context, year int, province canada.Province) (<-chan []shared.TaxBracket, <-chan error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (pg *postgresServiceMock) GetCombinedMarginalBrackets(ctx context.Context, year int, province canada.Province) (<-chan []shared.TaxBracket, <-chan error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (pg *postgresServiceMock) SaveMarginalTaxBrackets(ctx context.Context, province canada.Province, year int, brackets []shared.TaxBracket) (<-chan bool, <-chan error) {
 	//TODO implement me
 	panic("implement me")
