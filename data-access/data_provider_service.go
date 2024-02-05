@@ -68,6 +68,7 @@ func (ds *dataService) SaveMarginalTaxBrackets(ctx context.Context, province can
 		req := &dataProvider.SaveCombinedMarginalBracketsRequest{
 			Year:     int32(year),
 			Province: string(province),
+			Brackets: reqBrackets,
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()

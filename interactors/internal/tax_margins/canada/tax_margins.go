@@ -54,9 +54,12 @@ func (tm *taxMarginsCa) GetCombinedMarginalBrackets(ctx context.Context, input m
 		return
 	}
 	brackets := tm.marginalTaxBrackets.GetMargins()
-	_, errSaveChan := tm.dataProvider.SaveMarginalTaxBrackets(ctx, input.Province, input.Year, brackets)
-	if err = <-errSaveChan; err != nil {
+	saveChan, errSaveChan := tm.dataProvider.SaveMarginalTaxBrackets(ctx, input.Province, input.Year, brackets)
+	select {
+	case err = <-errSaveChan:
 		return
+	case _ = <-saveChan:
+		fmt.Println("saved to database")
 	}
 	out.Brackets = brackets
 	return
