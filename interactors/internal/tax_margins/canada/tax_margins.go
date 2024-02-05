@@ -3,6 +3,7 @@ package canadaTaxMrgins
 import (
 	"context"
 	"fmt"
+	"github.com/gerdooshell/tax-core/library/region/canada"
 
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	"github.com/gerdooshell/tax-core/entities/canada/shared"
@@ -33,6 +34,9 @@ func (tm *taxMarginsCa) GetCombinedMarginalBrackets(ctx context.Context, input m
 	case getError := <-errChan:
 		fmt.Printf("failed getting combined marginal brackets: %v\n", getError)
 	case brackets := <-bracketsCahn:
+		if len(brackets) == 0 {
+			break
+		}
 		out.Brackets = brackets
 		return
 	}
@@ -64,7 +68,7 @@ func (tm *taxMarginsCa) getFederalBrackets(ctx context.Context, input marginDS.I
 		defer close(errChan)
 		var err error
 		defer func() { errChan <- err }()
-		out, errOut := tm.dataProvider.GetTaxBrackets(ctx, input.Year, input.Province)
+		out, errOut := tm.dataProvider.GetTaxBrackets(ctx, input.Year, canada.Federal)
 		select {
 		case tm.federalTaxBrackets = <-out:
 		case err = <-errOut:
