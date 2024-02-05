@@ -3,7 +3,7 @@ module github.com/gerdooshell/tax-core
 go 1.21.6
 
 require (
-	github.com/gerdooshell/tax-communication/src/data_provider v0.0.0-20240204193059-f4c8e89905d6
+	github.com/gerdooshell/tax-communication/src/data_provider v0.0.0-20240205022219-a0cbdafc9a30
 	google.golang.org/grpc v1.61.0
 )
 

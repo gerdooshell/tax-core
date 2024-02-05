@@ -7,8 +7,7 @@ import (
 )
 
 type TaxMargin interface {
-	GetAlbertaTaxBrackets(ctx context.Context, year int) (<-chan []shared.TaxBracket, <-chan error)
-	GetFederalTaxBrackets(ctx context.Context, year int) (<-chan []shared.TaxBracket, <-chan error)
-	GetBCTaxBrackets(ctx context.Context, year int) (<-chan []shared.TaxBracket, <-chan error)
 	SaveMarginalTaxBrackets(ctx context.Context, province canada.Province, year int, brackets []shared.TaxBracket) (<-chan bool, <-chan error)
+	GetCombinedMarginalBrackets(ctx context.Context, year int, province canada.Province) (<-chan []shared.TaxBracket, <-chan error)
+	GetTaxBrackets(ctx context.Context, year int, province canada.Province) (<-chan []shared.TaxBracket, <-chan error)
 }

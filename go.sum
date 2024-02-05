@@ -2,6 +2,8 @@ github.com/gerdooshell/tax-communication/src/data_provider v0.0.0-20240130051355
 github.com/gerdooshell/tax-communication/src/data_provider v0.0.0-20240130051355-3bd0b2dd00a5/go.mod h1:YN8oocYvGRsAK+HwPDWwL1U6UXdRBEbHX5jTY0Bd60Y=
 github.com/gerdooshell/tax-communication/src/data_provider v0.0.0-20240204193059-f4c8e89905d6 h1:C9xEjGsoVjdbNFMVcHStfPsthMd4SiixeI9l4tpnVFo=
 github.com/gerdooshell/tax-communication/src/data_provider v0.0.0-20240204193059-f4c8e89905d6/go.mod h1:YN8oocYvGRsAK+HwPDWwL1U6UXdRBEbHX5jTY0Bd60Y=
+github.com/gerdooshell/tax-communication/src/data_provider v0.0.0-20240205022219-a0cbdafc9a30 h1:XFMKAvXZc1VtQ/RXHw/ixqjl+setEpqPjmQAC9ugFjE=
+github.com/gerdooshell/tax-communication/src/data_provider v0.0.0-20240205022219-a0cbdafc9a30/go.mod h1:YN8oocYvGRsAK+HwPDWwL1U6UXdRBEbHX5jTY0Bd60Y=
 github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=
 github.com/golang/protobuf v1.5.3 h1:KhyjKVUg7Usr/dYsdSqoFveMYd5ko72D+zANwlG1mmg=
 github.com/golang/protobuf v1.5.3/go.mod h1:XVQd3VNwM+JqD3oG2Ue2ip4fOMUkwXdXDdiuN0vRsmY=

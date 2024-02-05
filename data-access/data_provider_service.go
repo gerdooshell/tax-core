@@ -11,6 +11,7 @@ import (
 	"github.com/gerdooshell/tax-core/environment"
 	"github.com/gerdooshell/tax-core/library/region/canada"
 	"google.golang.org/grpc"
+	"math"
 	"time"
 )
 
@@ -64,13 +65,13 @@ func (ds *dataService) SaveMarginalTaxBrackets(ctx context.Context, province can
 		for _, bracket := range brackets {
 			reqBrackets = append(reqBrackets, &dataProvider.Bracket{Low: bracket.Low, Rate: bracket.Rate})
 		}
-		req := &dataProvider.CreateCombinedMarginalBracketsRequest{
+		req := &dataProvider.SaveCombinedMarginalBracketsRequest{
 			Year:     int32(year),
 			Province: string(province),
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()
-		resp, err := ds.grpcClient.PostCombinedMarginalBrackets(ctx, req)
+		resp, err := ds.grpcClient.SaveCombinedMarginalBrackets(ctx, req)
 		if err != nil {
 			errChan <- err
 			return
@@ -94,7 +95,7 @@ func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntit
 			errChan <- err
 			return
 		}
-		req := &dataProvider.CanadaPensionPlanRequest{
+		req := &dataProvider.GetCanadaPensionPlanRequest{
 			Year: int32(year),
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
@@ -131,7 +132,7 @@ func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan share
 			errChan <- err
 			return
 		}
-		req := &dataProvider.EmploymentInsurancePremiumRequest{
+		req := &dataProvider.GetEmploymentInsurancePremiumRequest{
 			Year: int32(year),
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
@@ -161,7 +162,7 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan fede
 			errChan <- err
 			return
 		}
-		req := &dataProvider.FederalBPARequest{
+		req := &dataProvider.GetFederalBPARequest{
 			Year: int32(year),
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
@@ -181,7 +182,7 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan fede
 	return out, errChan
 }
 
-func (ds *dataService) GetFederalTaxBrackets(ctx context.Context, year int) (<-chan []sharedEntities.TaxBracket, <-chan error) {
+func (ds *dataService) GetTaxBrackets(ctx context.Context, year int, province canada.Province) (<-chan []sharedEntities.TaxBracket, <-chan error) {
 	out := make(chan []sharedEntities.TaxBracket)
 	errChan := make(chan error)
 	go func() {
@@ -192,22 +193,64 @@ func (ds *dataService) GetFederalTaxBrackets(ctx context.Context, year int) (<-c
 			errChan <- err
 			return
 		}
-		req := &dataProvider.FederalTaxBracketsRequest{
-			Year: int32(year),
+		req := &dataProvider.GetTaxBracketsRequest{
+			Year:     int32(year),
+			Province: string(province),
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
 		defer cancel()
-		resp, err := ds.grpcClient.GetFederalTaxBrackets(ctx, req)
+		resp, err := ds.grpcClient.GetTaxBrackets(ctx, req)
 		if err != nil {
 			errChan <- err
 			return
 		}
-		rates := resp.GetRates()
-		levels := resp.GetLevels()
-		brackets, err := sharedEntities.FromArray(levels, rates)
+		respBrackets := resp.GetBrackets()
+		brackets := make([]sharedEntities.TaxBracket, 0, len(respBrackets))
+		for i, rb := range respBrackets {
+			bracket := sharedEntities.TaxBracket{Rate: rb.GetRate(), Low: rb.GetLow()}
+			if i < len(respBrackets)-1 {
+				bracket.High = respBrackets[i+1].Low
+			} else {
+				bracket.High = math.MaxFloat64
+			}
+			brackets = append(brackets, bracket)
+		}
+		out <- brackets
+	}()
+	return out, errChan
+}
+func (ds *dataService) GetCombinedMarginalBrackets(ctx context.Context, year int, province canada.Province) (<-chan []sharedEntities.TaxBracket, <-chan error) {
+	out := make(chan []sharedEntities.TaxBracket)
+	errChan := make(chan error)
+	go func() {
+		defer close(out)
+		defer close(errChan)
+		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
 			return
+		}
+		req := &dataProvider.GetCombinedMarginalBracketsRequest{
+			Year:     int32(year),
+			Province: string(province),
+		}
+		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
+		defer cancel()
+		resp, err := ds.grpcClient.GetCombinedMarginalBrackets(ctx, req)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		respBrackets := resp.GetBrackets()
+		brackets := make([]sharedEntities.TaxBracket, 0, len(respBrackets))
+		for i, rb := range respBrackets {
+			bracket := sharedEntities.TaxBracket{Rate: rb.GetRate(), Low: rb.GetLow()}
+			if i < len(respBrackets)-1 {
+				bracket.High = respBrackets[i+1].Low
+			} else {
+				bracket.High = math.MaxFloat64
+			}
+			brackets = append(brackets, bracket)
 		}
 		out <- brackets
 	}()
@@ -225,7 +268,7 @@ func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan federalEnti
 			errChan <- err
 			return
 		}
-		req := &dataProvider.CanadaEmploymentAmountRequest{
+		req := &dataProvider.GetCanadaEmploymentAmountRequest{
 			Year: int32(year),
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
@@ -251,7 +294,7 @@ func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits
 			errChan <- err
 			return
 		}
-		req := &dataProvider.BritishColumbiaBPARequest{
+		req := &dataProvider.GetBritishColumbiaBPARequest{
 			Year: int32(year),
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
@@ -262,39 +305,6 @@ func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits
 			return
 		}
 		out <- bcCredits.BasicPersonalAmount{Value: resp.GetBpaValue()}
-	}()
-	return out, errChan
-}
-
-func (ds *dataService) GetBCTaxBrackets(ctx context.Context, year int) (<-chan []sharedEntities.TaxBracket, <-chan error) {
-	out := make(chan []sharedEntities.TaxBracket)
-	errChan := make(chan error)
-	go func() {
-		defer close(out)
-		defer close(errChan)
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
-			return
-		}
-		req := &dataProvider.BritishColumbiaTaxBracketsRequest{
-			Year: int32(year),
-		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
-		resp, err := ds.grpcClient.GetBritishColumbiaTaxBrackets(ctx, req)
-		if err != nil {
-			errChan <- err
-			return
-		}
-		rates := resp.GetRates()
-		levels := resp.GetLevels()
-		brackets, err := sharedEntities.FromArray(levels, rates)
-		if err != nil {
-			errChan <- err
-			return
-		}
-		out <- brackets
 	}()
 	return out, errChan
 }
@@ -310,7 +320,7 @@ func (ds *dataService) GetAlbertaBPA(ctx context.Context, year int) (<-chan abCr
 			errChan <- err
 			return
 		}
-		req := &dataProvider.AlbertaBPARequest{
+		req := &dataProvider.GetAlbertaBPARequest{
 			Year: int32(year),
 		}
 		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
@@ -321,39 +331,6 @@ func (ds *dataService) GetAlbertaBPA(ctx context.Context, year int) (<-chan abCr
 			return
 		}
 		out <- abCredits.BasicPersonalAmount{Value: resp.GetBpaValue()}
-	}()
-	return out, errChan
-}
-
-func (ds *dataService) GetAlbertaTaxBrackets(ctx context.Context, year int) (<-chan []sharedEntities.TaxBracket, <-chan error) {
-	out := make(chan []sharedEntities.TaxBracket)
-	errChan := make(chan error)
-	go func() {
-		defer close(out)
-		defer close(errChan)
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
-			return
-		}
-		req := &dataProvider.AlbertaTaxBracketsRequest{
-			Year: int32(year),
-		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
-		resp, err := ds.grpcClient.GetAlbertaTaxBrackets(ctx, req)
-		if err != nil {
-			errChan <- err
-			return
-		}
-		rates := resp.GetRates()
-		levels := resp.GetLevels()
-		brackets, err := sharedEntities.FromArray(levels, rates)
-		if err != nil {
-			errChan <- err
-			return
-		}
-		out <- brackets
 	}()
 	return out, errChan
 }

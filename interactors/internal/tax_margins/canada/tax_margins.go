@@ -7,7 +7,6 @@ import (
 	"github.com/gerdooshell/tax-core/entities/canada/shared"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
 	marginDS "github.com/gerdooshell/tax-core/interactors/internal/tax_margins/canada/data_structures"
-	"github.com/gerdooshell/tax-core/library/region/canada"
 )
 
 type TaxMarginsCa interface {
@@ -57,7 +56,7 @@ func (tm *taxMarginsCa) getFederalBrackets(ctx context.Context, input marginDS.I
 		defer close(errChan)
 		var err error
 		defer func() { errChan <- err }()
-		out, errOut := tm.dataProvider.GetFederalTaxBrackets(ctx, input.Year)
+		out, errOut := tm.dataProvider.GetTaxBrackets(ctx, input.Year, input.Province)
 		select {
 		case tm.federalTaxBrackets = <-out:
 		case err = <-errOut:
@@ -72,14 +71,7 @@ func (tm *taxMarginsCa) getRegionalBrackets(ctx context.Context, input marginDS.
 		defer close(errChan)
 		var err error
 		defer func() { errChan <- err }()
-		var out <-chan []shared.TaxBracket
-		var errOut <-chan error
-		switch input.Province {
-		case canada.BritishColumbia:
-			out, errOut = tm.dataProvider.GetBCTaxBrackets(ctx, input.Year)
-		case canada.Alberta:
-			out, errOut = tm.dataProvider.GetAlbertaTaxBrackets(ctx, input.Year)
-		}
+		out, errOut := tm.dataProvider.GetTaxBrackets(ctx, input.Year, input.Province)
 		select {
 		case tm.regionalTaxBrackets = <-out:
 		case err = <-errOut:
