@@ -7,14 +7,20 @@ import (
 	bcCredits "github.com/gerdooshell/tax-core/entities/canada/bc/credits"
 	fedCredits "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
 	"github.com/gerdooshell/tax-core/entities/canada/shared"
+	"github.com/gerdooshell/tax-core/library/region/canada"
 	"math"
 )
 
-func NewPostgresServiceMock() dataAccess.TaxDataService {
+func NewPostgresServiceMock() dataAccess.DataProviderService {
 	return &postgresServiceMock{}
 }
 
 type postgresServiceMock struct {
+}
+
+func (pg *postgresServiceMock) SaveMarginalTaxBrackets(ctx context.Context, province canada.Province, year int, brackets []shared.TaxBracket) (<-chan bool, <-chan error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (pg *postgresServiceMock) GetCPP(ctx context.Context, year int) (<-chan shared.CanadaPensionPlan, <-chan error) {

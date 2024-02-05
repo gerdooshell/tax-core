@@ -4,7 +4,7 @@ import (
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
 )
 
-type TaxDataService interface {
+type DataProviderService interface {
 	dataAccess.FederalTaxData
 	dataAccess.BCTaxData
 	dataAccess.AlbertaTaxData

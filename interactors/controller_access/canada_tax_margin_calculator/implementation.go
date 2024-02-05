@@ -15,7 +15,7 @@ func NewCanadaTaxMarginCalculator() CanadaTaxMarginCalculator {
 
 func (c canadaTaxMarginCalculator) GetAllMarginalBrackets(ctx context.Context, input *Input) (out Output, err error) {
 	margin := canadaTaxMrgins.NewTaxMarginCa()
-	brackets, err := margin.GetAllMarginalBrackets(ctx, marginDS.Input{Year: input.Year, Province: input.Province})
+	brackets, err := margin.GetCombinedMarginalBrackets(ctx, marginDS.Input{Year: input.Year, Province: input.Province})
 	if err != nil {
 		return
 	}

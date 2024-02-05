@@ -11,7 +11,7 @@ import (
 )
 
 type TaxMarginsCa interface {
-	GetAllMarginalBrackets(ctx context.Context, input marginDS.Input) (out marginDS.Output, err error)
+	GetCombinedMarginalBrackets(ctx context.Context, input marginDS.Input) (out marginDS.Output, err error)
 }
 
 func NewTaxMarginCa() TaxMarginsCa {
@@ -27,7 +27,8 @@ type taxMarginsCa struct {
 	marginalTaxBrackets shared.TaxMarginalBracket
 }
 
-func (tm *taxMarginsCa) GetAllMarginalBrackets(ctx context.Context, input marginDS.Input) (out marginDS.Output, err error) {
+func (tm *taxMarginsCa) GetCombinedMarginalBrackets(ctx context.Context, input marginDS.Input) (out marginDS.Output, err error) {
+	// TODO: try to read from database first
 	errRegChan := tm.getFederalBrackets(ctx, input)
 	errFedChan := tm.getRegionalBrackets(ctx, input)
 	if err = <-errFedChan; err != nil {
@@ -41,7 +42,12 @@ func (tm *taxMarginsCa) GetAllMarginalBrackets(ctx context.Context, input margin
 	if err = tm.marginalTaxBrackets.CalcCombinedTaxMargins(); err != nil {
 		return
 	}
-	out.Brackets = tm.marginalTaxBrackets.GetMargins()
+	brackets := tm.marginalTaxBrackets.GetMargins()
+	_, errSaveChan := tm.dataProvider.SaveMarginalTaxBrackets(ctx, input.Province, input.Year, brackets)
+	if err = <-errSaveChan; err != nil {
+		return
+	}
+	out.Brackets = brackets
 	return
 }
 

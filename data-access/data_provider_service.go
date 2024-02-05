@@ -9,19 +9,12 @@ import (
 	federalEntities "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
 	"github.com/gerdooshell/tax-core/environment"
-	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
+	"github.com/gerdooshell/tax-core/library/region/canada"
 	"google.golang.org/grpc"
 	"time"
 )
 
-type DataService interface {
-	dataAccess.FederalTaxData
-	dataAccess.BCTaxData
-	dataAccess.AlbertaTaxData
-	dataAccess.AllCanadaTaxData
-}
-
-func NewDataProviderService() DataService {
+func NewDataProviderService() DataProviderService {
 	return &dataService{
 		dataProviderUrl: getDataProviderUrl(),
 		timeout:         time.Second * 3,
@@ -54,6 +47,40 @@ func (ds *dataService) generateDataServiceClient() error {
 	//	return nil, fmt.Errorf("failed closing connection, error: %v\n", err)
 	//}
 	return nil
+}
+
+func (ds *dataService) SaveMarginalTaxBrackets(ctx context.Context, province canada.Province, year int, brackets []sharedEntities.TaxBracket) (<-chan bool, <-chan error) {
+	out := make(chan bool)
+	errChan := make(chan error)
+	go func() {
+		defer close(out)
+		defer close(errChan)
+		err := ds.generateDataServiceClient()
+		if err != nil {
+			errChan <- err
+			return
+		}
+		reqBrackets := make([]*dataProvider.Bracket, 0, len(brackets))
+		for _, bracket := range brackets {
+			reqBrackets = append(reqBrackets, &dataProvider.Bracket{Low: bracket.Low, Rate: bracket.Rate})
+		}
+		req := &dataProvider.CreateCombinedMarginalBracketsRequest{
+			Year:     int32(year),
+			Province: string(province),
+		}
+		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
+		defer cancel()
+		resp, err := ds.grpcClient.PostCombinedMarginalBrackets(ctx, req)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		if resp == nil {
+			errChan <- fmt.Errorf("nil response: PostCombinedMarginalBrackets")
+		}
+		out <- resp.Success
+	}()
+	return out, errChan
 }
 
 func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntities.CanadaPensionPlan, <-chan error) {
