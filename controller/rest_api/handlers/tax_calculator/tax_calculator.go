@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/gorilla/mux"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gerdooshell/tax-core/controller/internal"
@@ -28,7 +29,6 @@ func NewTaxCalculatorController() restApi.Handler {
 
 type State struct {
 	context context.Context
-	body    io.ReadCloser
 	input   *canadaTaxCalculator.Input
 	apiKey  string
 }
@@ -38,13 +38,10 @@ func (tc *taxCalculator) URL() string {
 }
 
 func (tc *taxCalculator) Methods() []string {
-	return []string{http.MethodPost}
+	return []string{http.MethodGet}
 }
 
 func (tc *taxCalculator) Authorize() error {
-	if tc.state.apiKey != internal.APIKeyValue {
-		return errors.New("not authorized: invalid api key")
-	}
 	return nil
 }
 
@@ -52,13 +49,42 @@ func (tc *taxCalculator) ParseArgs(r *http.Request) (*http.Request, error) {
 	tc.state = &State{
 		context: context.Background(),
 	}
-	tc.state.body = r.Body
-	input, err := tc.buildCalculatorInput()
+	pathVars := mux.Vars(r)
+	provinceStr, ok := pathVars["province"]
+	if !ok {
+		return nil, fmt.Errorf("province is not provided")
+	}
+	var err error
+	province, err := canada.GetProvinceFromString(provinceStr)
+	if err != nil {
+		return nil, err
+	}
+	yearStr, ok := pathVars["year"]
+	if !ok {
+		return nil, fmt.Errorf("year is not provided")
+	}
+	year, err := strconv.Atoi(yearStr)
+	if err != nil {
+		return nil, err
+	}
+	incomeStr, ok := pathVars["income"]
+	if !ok {
+		return nil, fmt.Errorf("income is not provided")
+	}
+	income, err := strconv.ParseFloat(incomeStr, 64)
+	if err != nil {
+		return nil, err
+	}
+	input := canadaTaxCalculator.Input{
+		Province: province,
+		Year:     year,
+		Salary:   income,
+	}
 	if err != nil {
 		return nil, err
 	}
 	tc.state.apiKey = r.Header.Get(internal.APIKyeNameID)
-	tc.state.input = input
+	tc.state.input = &input
 	if err := tc.validateInput(); err != nil {
 		return nil, err
 	}
@@ -89,18 +115,6 @@ func (tc *taxCalculator) Process(_ *http.Request) *http.Response {
 	return resp
 }
 
-func (tc *taxCalculator) buildCalculatorInput() (*canadaTaxCalculator.Input, error) {
-	bodyInput := new(RequestBodyModel)
-	if err := json.NewDecoder(tc.state.body).Decode(bodyInput); err != nil {
-		return nil, err
-	}
-	input, err := bodyInput.toInteractorInput()
-	if err != nil {
-		return nil, err
-	}
-	return input, nil
-}
-
 func (tc *taxCalculator) validateInput() error {
 	if tc.state.input.Year <= 0 {
 		return fmt.Errorf("invalid year \"%v\"", tc.state.input.Year)
@@ -118,18 +132,6 @@ type RequestBodyModel struct {
 	Province string  `json:"province"`
 	Income   float64 `json:"income"`
 	Year     int     `json:"year"`
-}
-
-func (reqBody RequestBodyModel) toInteractorInput() (*canadaTaxCalculator.Input, error) {
-	input := new(canadaTaxCalculator.Input)
-	input.Salary = reqBody.Income
-	input.Year = reqBody.Year
-	province, err := canada.GetProvinceFromString(reqBody.Province)
-	if err != nil {
-		return nil, err
-	}
-	input.Province = province
-	return input, nil
 }
 
 type ResponseBodyModel struct {

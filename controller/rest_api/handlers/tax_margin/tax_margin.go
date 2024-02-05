@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,9 +43,6 @@ func (tc *taxMargin) Methods() []string {
 }
 
 func (tc *taxMargin) Authorize() error {
-	if tc.state.apiKey != internal.APIKeyValue {
-		return errors.New("not authorized: invalid api key")
-	}
 	return nil
 }
 
@@ -57,7 +53,7 @@ func (tc *taxMargin) ParseArgs(r *http.Request) (*http.Request, error) {
 	pathVars := mux.Vars(r)
 	provinceStr, ok := pathVars["province"]
 	if !ok {
-		return nil, fmt.Errorf("province not provided")
+		return nil, fmt.Errorf("province is not provided")
 	}
 	var err error
 	province, err := canada.GetProvinceFromString(provinceStr)
