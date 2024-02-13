@@ -18,7 +18,7 @@ type FederalTaxCalculator interface {
 
 func NewTaxCalculator() FederalTaxCalculator {
 	return &federalTaxCalculatorImpl{
-		dataProvider: dataService.NewDataProviderService(),
+		dataProvider: dataService.GetDataProviderServiceInstance(),
 	}
 }
 

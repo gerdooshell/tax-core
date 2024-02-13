@@ -17,7 +17,7 @@ type TaxMarginsCa interface {
 
 func NewTaxMarginCa() TaxMarginsCa {
 	return &taxMarginsCa{
-		dataProvider: dataProvider.NewDataProviderService(),
+		dataProvider: dataProvider.GetDataProviderServiceInstance(),
 	}
 }
 
