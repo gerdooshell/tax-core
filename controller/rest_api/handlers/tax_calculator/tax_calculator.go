@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"io"
 	"net/http"
 	"strconv"
@@ -17,6 +16,8 @@ import (
 	canadaTaxCalculator "github.com/gerdooshell/tax-core/interactors/controller_access/canada_tax_calculator"
 	canadaTaxImplementation "github.com/gerdooshell/tax-core/interactors/controller_access/canada_tax_calculator/implementation"
 	"github.com/gerdooshell/tax-core/library/region/canada"
+
+	"github.com/gorilla/mux"
 )
 
 type taxCalculator struct {
@@ -28,9 +29,8 @@ func NewTaxCalculatorController() restApi.Handler {
 }
 
 type State struct {
-	context context.Context
-	input   *canadaTaxCalculator.Input
-	apiKey  string
+	input  *canadaTaxCalculator.Input
+	apiKey string
 }
 
 func (tc *taxCalculator) URL() string {
@@ -46,9 +46,7 @@ func (tc *taxCalculator) Authorize() error {
 }
 
 func (tc *taxCalculator) ParseArgs(r *http.Request) (*http.Request, error) {
-	tc.state = &State{
-		context: context.Background(),
-	}
+	state := State{}
 	pathVars := mux.Vars(r)
 	provinceStr, ok := pathVars["province"]
 	if !ok {
@@ -83,20 +81,23 @@ func (tc *taxCalculator) ParseArgs(r *http.Request) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	tc.state.apiKey = r.Header.Get(internal.APIKyeNameID)
-	tc.state.input = &input
-	if err := tc.validateInput(); err != nil {
+	state.apiKey = r.Header.Get(internal.APIKyeNameID)
+	state.input = &input
+	if err := validateInput(state); err != nil {
 		return nil, err
 	}
+	ctx := context.WithValue(r.Context(), "state", state)
+	r = r.WithContext(ctx)
 	return r, nil
 }
 
-func (tc *taxCalculator) Process(_ *http.Request) *http.Response {
+func (tc *taxCalculator) Process(r *http.Request) *http.Response {
 	resp := new(http.Response)
-	ctx, cancel := context.WithTimeout(tc.state.context, time.Second*5)
+	state := r.Context().Value("state").(State)
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second*5)
 	defer cancel()
 	calculator := canadaTaxImplementation.NewCanadaTaxCalculator()
-	out, err := calculator.Calculate(ctx, tc.state.input)
+	out, err := calculator.Calculate(ctx, state.input)
 	if err != nil {
 		resp.Body = io.NopCloser(bytes.NewReader([]byte(err.Error())))
 		resp.StatusCode = http.StatusInternalServerError
@@ -115,15 +116,15 @@ func (tc *taxCalculator) Process(_ *http.Request) *http.Response {
 	return resp
 }
 
-func (tc *taxCalculator) validateInput() error {
-	if tc.state.input.Year <= 0 {
-		return fmt.Errorf("invalid year \"%v\"", tc.state.input.Year)
+func validateInput(state State) error {
+	if state.input.Year <= 0 {
+		return fmt.Errorf("invalid year \"%v\"", state.input.Year)
 	}
-	if tc.state.input.Salary <= 0 {
-		return fmt.Errorf("invalid income \"%v\"", tc.state.input.Salary)
+	if state.input.Salary <= 0 {
+		return fmt.Errorf("invalid income \"%v\"", state.input.Salary)
 	}
-	if tc.state.input.Province == canada.Federal {
-		return fmt.Errorf("invalid province \"%v\"", tc.state.input.Province)
+	if state.input.Province == canada.Federal {
+		return fmt.Errorf("invalid province \"%v\"", state.input.Province)
 	}
 	return nil
 }

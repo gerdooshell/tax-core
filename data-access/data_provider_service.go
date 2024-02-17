@@ -3,7 +3,10 @@ package dataAccess
 import (
 	"context"
 	"fmt"
-	dataProvider "github.com/gerdooshell/tax-communication/src/data_provider"
+	"math"
+	"sync"
+	"time"
+
 	abCredits "github.com/gerdooshell/tax-core/entities/canada/alberta/credits"
 	bcCredits "github.com/gerdooshell/tax-core/entities/canada/bc/credits"
 	federalEntities "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
@@ -11,10 +14,10 @@ import (
 	"github.com/gerdooshell/tax-core/environment"
 	"github.com/gerdooshell/tax-core/library/cache/lrucache"
 	"github.com/gerdooshell/tax-core/library/region/canada"
+
+	dataProvider "github.com/gerdooshell/tax-communication/src/data_provider"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"math"
-	"time"
 )
 
 var singletonInstance *dataService
@@ -33,6 +36,7 @@ func GetDataProviderServiceInstance() DataProviderService {
 		dataProviderUrl: getDataProviderUrl(),
 		timeout:         time.Second * 3,
 		cache:           lrucache.NewLRUCache[cacheKey](500),
+		mu:              make(map[string]*sync.Mutex),
 	}
 	return singletonInstance
 }
@@ -49,6 +53,7 @@ type dataService struct {
 	grpcClient      dataProvider.GRPCDataProviderClient
 	timeout         time.Duration
 	cache           lrucache.LRUCache[cacheKey]
+	mu              map[string]*sync.Mutex
 }
 
 func (ds *dataService) generateDataServiceClient() error {
@@ -66,12 +71,29 @@ func (ds *dataService) generateDataServiceClient() error {
 	return nil
 }
 
+var mapMu sync.Mutex
+
+func (ds *dataService) RegisterToMutex(funcName string) {
+	mapMu.Lock()
+	defer mapMu.Unlock()
+	if _, ok := ds.mu[funcName]; ok {
+		return
+	}
+	var mu sync.Mutex
+	ds.mu[funcName] = &mu
+}
+
 func (ds *dataService) SaveMarginalTaxBrackets(ctx context.Context, province canada.Province, year int, brackets []sharedEntities.TaxBracket) (<-chan bool, <-chan error) {
+	funcName := "SaveMarginalTaxBrackets"
+	ds.RegisterToMutex(funcName)
 	out := make(chan bool)
 	errChan := make(chan error)
+	mu := ds.mu[funcName]
 	go func() {
 		defer close(out)
 		defer close(errChan)
+		mu.Lock()
+		defer mu.Unlock()
 		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
@@ -102,12 +124,17 @@ func (ds *dataService) SaveMarginalTaxBrackets(ctx context.Context, province can
 }
 
 func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntities.CanadaPensionPlan, <-chan error) {
+	funcName := "GetCPP"
+	ds.RegisterToMutex(funcName)
 	out := make(chan sharedEntities.CanadaPensionPlan)
 	errChan := make(chan error)
+	mu := ds.mu[funcName]
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		cppCacheKey := cacheKey{region: canada.Federal, year: year, resource: "GetCPP"}
+		mu.Lock()
+		defer mu.Unlock()
+		cppCacheKey := cacheKey{region: canada.Federal, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(cppCacheKey); cacheErr == nil {
 			out <- value.(sharedEntities.CanadaPensionPlan)
 			return
@@ -149,12 +176,17 @@ func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntit
 }
 
 func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan sharedEntities.EmploymentInsurancePremium, <-chan error) {
+	funcName := "GetEIPremium"
+	ds.RegisterToMutex(funcName)
 	out := make(chan sharedEntities.EmploymentInsurancePremium)
 	errChan := make(chan error)
+	mu := ds.mu[funcName]
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		eipCacheKey := cacheKey{region: canada.Federal, year: year, resource: "GetEIPremium"}
+		mu.Lock()
+		defer mu.Unlock()
+		eipCacheKey := cacheKey{region: canada.Federal, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(eipCacheKey); cacheErr == nil {
 			out <- value.(sharedEntities.EmploymentInsurancePremium)
 			return
@@ -189,12 +221,17 @@ func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan share
 }
 
 func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan federalEntities.BasicPersonalAmount, <-chan error) {
+	funcName := "GetFederalBPA"
+	ds.RegisterToMutex(funcName)
 	out := make(chan federalEntities.BasicPersonalAmount)
 	errChan := make(chan error)
+	mu := ds.mu[funcName]
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		bpaCacheKey := cacheKey{region: canada.Federal, year: year, resource: "GetFederalBPA"}
+		mu.Lock()
+		defer mu.Unlock()
+		bpaCacheKey := cacheKey{region: canada.Federal, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(bpaCacheKey); cacheErr == nil {
 			out <- value.(federalEntities.BasicPersonalAmount)
 			return
@@ -230,12 +267,17 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan fede
 }
 
 func (ds *dataService) GetTaxBrackets(ctx context.Context, year int, province canada.Province) (<-chan []sharedEntities.TaxBracket, <-chan error) {
+	funcName := "GetTaxBrackets"
+	ds.RegisterToMutex(funcName)
 	out := make(chan []sharedEntities.TaxBracket)
 	errChan := make(chan error)
+	mu := ds.mu[funcName]
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		bracketsCacheKey := cacheKey{region: province, year: year, resource: "GetTaxBrackets"}
+		mu.Lock()
+		defer mu.Unlock()
+		bracketsCacheKey := cacheKey{region: province, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(bracketsCacheKey); cacheErr == nil {
 			out <- value.([]sharedEntities.TaxBracket)
 			return
@@ -276,12 +318,17 @@ func (ds *dataService) GetTaxBrackets(ctx context.Context, year int, province ca
 	return out, errChan
 }
 func (ds *dataService) GetCombinedMarginalBrackets(ctx context.Context, year int, province canada.Province) (<-chan []sharedEntities.TaxBracket, <-chan error) {
+	funcName := "GetCombinedMarginalBrackets"
+	ds.RegisterToMutex(funcName)
 	out := make(chan []sharedEntities.TaxBracket)
 	errChan := make(chan error)
+	mu := ds.mu[funcName]
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		marginalCacheKey := cacheKey{region: province, year: year, resource: "GetCombinedMarginalBrackets"}
+		mu.Lock()
+		defer mu.Unlock()
+		marginalCacheKey := cacheKey{region: province, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(marginalCacheKey); cacheErr == nil {
 			out <- value.([]sharedEntities.TaxBracket)
 			return
@@ -323,12 +370,17 @@ func (ds *dataService) GetCombinedMarginalBrackets(ctx context.Context, year int
 }
 
 func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan federalEntities.CanadaEmploymentAmount, <-chan error) {
+	funcName := "GetCEA"
+	ds.RegisterToMutex(funcName)
 	out := make(chan federalEntities.CanadaEmploymentAmount)
 	errChan := make(chan error)
+	mu := ds.mu[funcName]
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		ceaCacheKey := cacheKey{region: canada.Federal, year: year, resource: "GetCEA"}
+		mu.Lock()
+		defer mu.Unlock()
+		ceaCacheKey := cacheKey{region: canada.Federal, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(ceaCacheKey); cacheErr == nil {
 			out <- value.(federalEntities.CanadaEmploymentAmount)
 			return
@@ -359,12 +411,17 @@ func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan federalEnti
 }
 
 func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits.BasicPersonalAmount, <-chan error) {
+	funcName := "GetBCBPA"
+	ds.RegisterToMutex(funcName)
 	out := make(chan bcCredits.BasicPersonalAmount)
 	errChan := make(chan error)
+	mu := ds.mu[funcName]
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		bpaCacheKey := cacheKey{region: canada.BritishColumbia, year: year, resource: "GetBCBPA"}
+		mu.Lock()
+		defer mu.Unlock()
+		bpaCacheKey := cacheKey{region: canada.BritishColumbia, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(bpaCacheKey); cacheErr == nil {
 			out <- value.(bcCredits.BasicPersonalAmount)
 			return
@@ -395,12 +452,17 @@ func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits
 }
 
 func (ds *dataService) GetAlbertaBPA(ctx context.Context, year int) (<-chan abCredits.BasicPersonalAmount, <-chan error) {
+	funcName := "GetAlbertaBPA"
+	ds.RegisterToMutex(funcName)
 	out := make(chan abCredits.BasicPersonalAmount)
 	errChan := make(chan error)
+	mu := ds.mu[funcName]
 	go func() {
 		defer close(out)
 		defer close(errChan)
-		bpaCacheKey := cacheKey{region: canada.Alberta, year: year, resource: "GetAlbertaBPA"}
+		mu.Lock()
+		defer mu.Unlock()
+		bpaCacheKey := cacheKey{region: canada.Alberta, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(bpaCacheKey); cacheErr == nil {
 			out <- value.(abCredits.BasicPersonalAmount)
 			return
