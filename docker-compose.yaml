@@ -2,7 +2,7 @@ version: '3.6'
 
 services:
   pefco-proxy:
-    image: gerdooshell/pefco-proxy:0.6.1.amd
+    image: gerdooshell/pefco-proxy:0.6.3.amd
     networks:
       - tax-network
     deploy:
@@ -18,11 +18,11 @@ services:
       - pefco-ui
 
   tax-core:
-    image: gerdooshell/tax-core:0.3.0.amd
+    image: gerdooshell/tax-core:0.3.1.amd
     networks:
       - tax-network
     deploy:
-      replicas: 2
+      replicas: 1
       update_config:
         parallelism: 1
         order: start-first
