@@ -20,18 +20,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type taxMargin struct {
-	state *State
-}
+type taxMargin struct{}
 
 func NewTaxMarginController() restApi.Handler {
 	return &taxMargin{}
 }
 
 type State struct {
-	context context.Context
-	input   *canadaTaxMarginCalculator.Input
-	apiKey  string
+	input  *canadaTaxMarginCalculator.Input
+	apiKey string
 }
 
 func (tc *taxMargin) URL() string {
@@ -47,9 +44,7 @@ func (tc *taxMargin) Authorize() error {
 }
 
 func (tc *taxMargin) ParseArgs(r *http.Request) (*http.Request, error) {
-	tc.state = &State{
-		context: context.Background(),
-	}
+	state := State{}
 	pathVars := mux.Vars(r)
 	provinceStr, ok := pathVars["province"]
 	if !ok {
@@ -68,17 +63,20 @@ func (tc *taxMargin) ParseArgs(r *http.Request) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	tc.state.input = &canadaTaxMarginCalculator.Input{Year: year, Province: province}
-	tc.state.apiKey = r.Header.Get(internal.APIKyeNameID)
+	state.input = &canadaTaxMarginCalculator.Input{Year: year, Province: province}
+	state.apiKey = r.Header.Get(internal.APIKyeNameID)
+	ctx := context.WithValue(r.Context(), "state", state)
+	r = r.WithContext(ctx)
 	return r, nil
 }
 
-func (tc *taxMargin) Process(_ *http.Request) *http.Response {
+func (tc *taxMargin) Process(r *http.Request) *http.Response {
 	resp := new(http.Response)
-	ctx, cancel := context.WithTimeout(tc.state.context, time.Second*5)
+	state := r.Context().Value("state").(State)
+	ctx, cancel := context.WithTimeout(r.Context(), time.Second*5)
 	defer cancel()
 	marginalTax := canadaTaxMarginCalculator.NewCanadaTaxMarginCalculator()
-	out, err := marginalTax.GetAllMarginalBrackets(ctx, tc.state.input)
+	out, err := marginalTax.GetAllMarginalBrackets(ctx, state.input)
 	if err != nil {
 		resp.Body = io.NopCloser(bytes.NewReader([]byte(err.Error())))
 		resp.StatusCode = http.StatusInternalServerError
