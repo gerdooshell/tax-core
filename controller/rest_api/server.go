@@ -50,6 +50,8 @@ func RegisterMuxHTTP(muxRouter *mux.Router, handler handlers.Handler) {
 		for _, method := range append(handler.Methods(), http.MethodOptions) {
 			if method == r.Method {
 				w.Header().Add("Access-Control-Allow-Origin", "*")
+				w.Header().Add("Access-Control-Allow-Methods", "GET, OPTIONS")
+				w.Header().Add("Cache-Control", "public, max-age=600")
 				w.Header().Add("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, x-api-key")
 				h.ServeHTTP(w, r)
 				notAllowed = false
