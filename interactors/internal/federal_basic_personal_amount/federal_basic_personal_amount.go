@@ -2,6 +2,7 @@ package federalBPA
 
 import (
 	"context"
+	"fmt"
 
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
@@ -41,6 +42,8 @@ func (f *federalBPAImpl) GetFederalBPA(ctx context.Context, year int, totalIncom
 				return
 			}
 			federalBPAOutput.Value = federalBPA.GetValue()
+		case <-ctx.Done():
+			federalBPAOutput.Err = fmt.Errorf("processing federal bpa canceled")
 		}
 	}()
 	return out

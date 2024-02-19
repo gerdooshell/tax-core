@@ -56,8 +56,20 @@ func (t *taxInfoImpl) calculateLegacyDeductionAndTax(ctx context.Context, input 
 	taxFederalChan := t.taxCalculator.GetTotalTax(ctx, input.Year, canada.Federal, taxableIncome)
 	out.TaxDeductions.CPPFirstAdditional = deductions.CPPFirstAdditionalEmployee
 	out.TaxDeductions.CPPSecondAdditional = deductions.CPPSecondAdditionalEmployee
-	regionalTax := <-taxRegionalChan
-	federalTax := <-taxFederalChan
+	var regionalTax taxCalculator.TotalTaxOutput
+	select {
+	case regionalTax = <-taxRegionalChan:
+	case <-ctx.Done():
+		*err = fmt.Errorf("processing calculate legacy deduction and tax canceled")
+		return
+	}
+	var federalTax taxCalculator.TotalTaxOutput
+	select {
+	case federalTax = <-taxFederalChan:
+	case <-ctx.Done():
+		*err = fmt.Errorf("processing calculate legacy deduction and tax canceled")
+		return
+	}
 	if regionalTax.Err != nil {
 		*err = regionalTax.Err
 		return
@@ -73,7 +85,13 @@ func (t *taxInfoImpl) calculateLegacyDeductionAndTax(ctx context.Context, input 
 func (t *taxInfoImpl) calculateLegacyCredits(ctx context.Context, input *Input, wg *sync.WaitGroup, out *Output, err *error, totalFederalCredits, totalRegionalCredits *float64) {
 	defer wg.Done()
 	creditsChan := t.creditsCalculator.GetTaxCredits(ctx, input.Year, input.Province, input.TotalIncome)
-	creditsInfo := <-creditsChan
+	var creditsInfo sharedCredits.TaxCreditsOutput
+	select {
+	case creditsInfo = <-creditsChan:
+	case <-ctx.Done():
+		*err = fmt.Errorf("processing calculate legacy credits canceled")
+		return
+	}
 	if creditsInfo.Err != nil {
 		*err = creditsInfo.Err
 		return
@@ -87,12 +105,25 @@ func (t *taxInfoImpl) calculateLegacyCredits(ctx context.Context, input *Input, 
 	out.TaxCredits.FederalBasicPensionAmount = creditsInfo.FederalBPA
 	out.TaxCredits.RegionalBasicPensionAmount = creditsInfo.RegionalBPA
 	out.TaxCredits.CanadaEmploymentAmount = creditsInfo.CanadaEmploymentAmount
-	totalFederalCreditsResp := <-reducedTaxCreditFederal
+	var totalFederalCreditsResp taxCalculator.TotalTaxOutput
+	select {
+	case totalFederalCreditsResp = <-reducedTaxCreditFederal:
+	case <-ctx.Done():
+		*err = fmt.Errorf("processing calculate legacy credits canceled")
+		return
+	}
+
 	if totalFederalCreditsResp.Err != nil {
 		*err = totalFederalCreditsResp.Err
 		return
 	}
-	totalRegionalCreditsResp := <-reducedTaxCreditRegional
+	var totalRegionalCreditsResp taxCalculator.TotalTaxOutput
+	select {
+	case totalRegionalCreditsResp = <-reducedTaxCreditRegional:
+	case <-ctx.Done():
+		*err = fmt.Errorf("processing calculate legacy credits canceled")
+		return
+	}
 	if totalRegionalCreditsResp.Err != nil {
 		*err = totalRegionalCreditsResp.Err
 		return

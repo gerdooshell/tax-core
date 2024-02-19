@@ -2,6 +2,7 @@ package ceaCalculator
 
 import (
 	"context"
+	"fmt"
 
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	federalEntities "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
@@ -44,6 +45,8 @@ func (cea *canadaEmploymentAmountImpl) GetCEACredit(ctx context.Context, year in
 				return
 			}
 			ceaOutput.Value = cea.ceaEntity.GetEmployeeValue()
+		case <-ctx.Done():
+			ceaOutput.Err = fmt.Errorf("processing canada employment amount canceled")
 		}
 	}()
 	return out

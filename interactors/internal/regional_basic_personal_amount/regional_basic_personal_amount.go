@@ -2,6 +2,8 @@ package regionalBPA
 
 import (
 	"context"
+	"fmt"
+
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
 	"github.com/gerdooshell/tax-core/library/region/canada"
@@ -44,6 +46,8 @@ func (r *regionalBPAImpl) GetRegionalBPA(ctx context.Context, year int, totalInc
 				}
 				regionalBPAOutput.Value = abBPA.GetValue()
 				return
+			case <-ctx.Done():
+				regionalBPAOutput.Err = fmt.Errorf("processing regional bpa canceled")
 			}
 		case canada.BritishColumbia:
 			bcChan, errChan := r.dataProvider.GetBCBPA(ctx, year)
@@ -56,6 +60,8 @@ func (r *regionalBPAImpl) GetRegionalBPA(ctx context.Context, year int, totalInc
 				}
 				regionalBPAOutput.Value = bcBPA.GetValue()
 				return
+			case <-ctx.Done():
+				regionalBPAOutput.Err = fmt.Errorf("processing regional bpa canceled")
 			}
 		}
 	}()

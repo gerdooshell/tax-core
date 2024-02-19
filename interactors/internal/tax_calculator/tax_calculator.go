@@ -54,7 +54,9 @@ func (t *totalTaxImpl) applyTaxBrackets(ctx context.Context, year int, province 
 				totalTaxOutput.Err = err
 			}
 			totalTaxOutput.Value = taxEntity.GetValue()
-			fmt.Println("tax:", amount, isCredit, totalTaxOutput.Value)
+		case <-ctx.Done():
+			totalTaxOutput.Err = fmt.Errorf("processing tax brackets canceled")
+			return
 		}
 	}()
 	return out
