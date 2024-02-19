@@ -30,7 +30,7 @@ func TestTax_Calculate(t1 *testing.T) {
 				TaxBrackets:      tt.fields.TaxBrackets,
 				calculatedAmount: tt.fields.calculatedAmount,
 			}
-			if err := t.Calculate(tt.args.taxableIncome); (err != nil) != tt.wantErr {
+			if err := t.Calculate(tt.args.taxableIncome, false); (err != nil) != tt.wantErr {
 				t1.Errorf("Calculate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -65,9 +65,9 @@ func TestTax_GetValue(t1 *testing.T) {
 				TaxBrackets:      tt.fields.TaxBrackets,
 				calculatedAmount: tt.fields.calculatedAmount,
 			}
-			_ = t.Calculate(tt.args.taxableIncome)
+			_ = t.Calculate(tt.args.taxableIncome, false)
 			if got := t.GetValue(); got != tt.want {
-				t1.Errorf("GetValue() = %v, want %v", got, tt.want)
+				t1.Errorf("GetEmployeeValue() = %v, want %v", got, tt.want)
 			}
 		})
 	}
