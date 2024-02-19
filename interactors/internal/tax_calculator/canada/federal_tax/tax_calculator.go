@@ -69,21 +69,21 @@ func (fed *federalTaxCalculatorImpl) CalculateFederalTax(ctx context.Context, in
 	fed.tax = sharedEntities.Tax{
 		TaxBrackets: fed.brackets,
 	}
-	if err = fed.tax.Calculate(taxableIncome); err != nil {
+	if err = fed.tax.Calculate(taxableIncome, false); err != nil {
 		return
 	}
 
 	fed.creditsReduction = sharedEntities.Tax{
 		TaxBrackets: fed.brackets,
 	}
-	creditAmount := fed.ei.GetEIEmployee() + fed.cpp.GetCPPBasicEmployee() + fed.bpa.GetValue() + fed.cea.GetValue()
-	if err = fed.creditsReduction.Calculate(creditAmount); err != nil {
+	creditAmount := fed.ei.GetEIEmployee() + fed.cpp.GetCPPBasicEmployee() + fed.bpa.GetValue() + fed.cea.GetEmployeeValue()
+	if err = fed.creditsReduction.Calculate(creditAmount, true); err != nil {
 		return
 	}
 	out.Deductions = deductions
 	out.Credits = fedDS.FederalTaxCredit{
 		BasicPensionAmount:     fed.bpa.GetValue(),
-		CanadaEmploymentAmount: fed.cea.GetValue(),
+		CanadaEmploymentAmount: fed.cea.GetEmployeeValue(),
 		AllCanadaTaxCredits: shared.AllCanadaTaxCredits{
 			CanadaPensionPlanBasic:     fed.cpp.GetCPPBasicEmployee(),
 			EmploymentInsurancePremium: fed.ei.GetEIEmployee(),
@@ -125,7 +125,7 @@ func (fed *federalTaxCalculatorImpl) processCEA(ctx context.Context, input *fedD
 		case err = <-errChan:
 			return
 		case fed.cea = <-ceaChan:
-			err = fed.cea.Calculate()
+			err = fed.cea.Calculate(input.Salary)
 		}
 	}()
 	return out

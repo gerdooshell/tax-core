@@ -53,7 +53,7 @@ func (ab *taxCalculatorImpl) CalculateAlbertaTax(ctx context.Context, input *abD
 	ab.tax = shared.Tax{
 		TaxBrackets: ab.brackets,
 	}
-	if err = ab.tax.Calculate(taxableIncome); err != nil {
+	if err = ab.tax.Calculate(taxableIncome, false); err != nil {
 		return
 	}
 
@@ -61,7 +61,7 @@ func (ab *taxCalculatorImpl) CalculateAlbertaTax(ctx context.Context, input *abD
 		TaxBrackets: ab.brackets,
 	}
 	reductionAmount := ab.bpa.GetValue() + ab.ei.GetEIEmployee() + ab.cpp.GetCPPBasicEmployee()
-	if err = ab.creditsReduction.Calculate(reductionAmount); err != nil {
+	if err = ab.creditsReduction.Calculate(reductionAmount, true); err != nil {
 		return
 	}
 	out.Credits = abDS.AlbertaTaxCredit{

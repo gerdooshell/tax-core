@@ -60,12 +60,12 @@ func (bc *taxCalculatorImpl) CalculateBCTax(ctx context.Context, input *bcDS.Inp
 	bc.tax = sharedEntities.Tax{
 		TaxBrackets: bc.brackets,
 	}
-	err = bc.tax.Calculate(input.Salary - deductionAmount)
+	err = bc.tax.Calculate(input.Salary-deductionAmount, false)
 	creditAmount := bc.bpa.GetValue() + bc.cpp.GetCPPBasicEmployee() + bc.ei.GetEIEmployee()
 	bc.creditsReduction = sharedEntities.Tax{
 		TaxBrackets: bc.brackets,
 	}
-	if err = bc.creditsReduction.Calculate(creditAmount); err != nil {
+	if err = bc.creditsReduction.Calculate(creditAmount, true); err != nil {
 		return
 	}
 	out.Credits = bcDS.BCTaxCredits{
