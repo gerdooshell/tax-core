@@ -6,22 +6,30 @@ import (
 )
 
 type CanadaEmploymentAmount struct {
-	Value float64
+	Value           float64
+	calculatedValue float64
 }
 
-func (cea *CanadaEmploymentAmount) Calculate() error {
-	if err := cea.validate(); err != nil {
+func (cea *CanadaEmploymentAmount) Calculate(totalIncome float64) error {
+	if err := cea.validate(totalIncome); err != nil {
 		return err
 	}
-	cea.Value = mathHelper.RoundFloat64(cea.Value, 2)
+	cea.calculatedValue = mathHelper.RoundFloat64(min(cea.Value, totalIncome), 2)
 	return nil
 }
 
-func (cea *CanadaEmploymentAmount) GetValue() float64 {
-	return cea.Value
+func (cea *CanadaEmploymentAmount) GetEmployeeValue() float64 {
+	return cea.calculatedValue
 }
 
-func (cea *CanadaEmploymentAmount) validate() error {
+func (cea *CanadaEmploymentAmount) GetSelfEmployedValue() float64 {
+	return 0
+}
+
+func (cea *CanadaEmploymentAmount) validate(totalIncome float64) error {
+	if totalIncome < 0 {
+		return fmt.Errorf("cea error: invlid total income: \"%v\"", totalIncome)
+	}
 	if cea.Value < 0 {
 		return fmt.Errorf("cea error: invalid cea: \"%v\"", cea.Value)
 	}
