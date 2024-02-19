@@ -9,4 +9,10 @@ type DataProviderService interface {
 	dataAccess.BCTaxData
 	dataAccess.AlbertaTaxData
 	dataAccess.TaxMargin
+	dataAccess.FederalBPAData
+	dataAccess.EIPremiumData
+	dataAccess.CanadaEmploymentAmountData
+	dataAccess.CanadaPensionPlanData
+	dataAccess.RegionalBPAData
+	dataAccess.TaxBracketData
 }
