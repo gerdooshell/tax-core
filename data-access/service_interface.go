@@ -5,9 +5,6 @@ import (
 )
 
 type DataProviderService interface {
-	dataAccess.FederalTaxData
-	dataAccess.BCTaxData
-	dataAccess.AlbertaTaxData
 	dataAccess.TaxMargin
 	dataAccess.FederalBPAData
 	dataAccess.EIPremiumData
@@ -15,4 +12,5 @@ type DataProviderService interface {
 	dataAccess.CanadaPensionPlanData
 	dataAccess.RegionalBPAData
 	dataAccess.TaxBracketData
+	dataAccess.RRSPData
 }

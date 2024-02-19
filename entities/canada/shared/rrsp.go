@@ -11,7 +11,7 @@ type RRSP struct {
 	contribution          float64
 }
 
-func (rrsp *RRSP) CalculateContribution(totalIncome float64) error {
+func (rrsp *RRSP) CalculateMaxContribution(totalIncome float64) error {
 	if err := rrsp.validate(totalIncome); err != nil {
 		return err
 	}

@@ -35,7 +35,7 @@ func GetDataProviderServiceInstance() DataProviderService {
 	singletonInstance = &dataService{
 		dataProviderUrl: getDataProviderUrl(),
 		timeout:         time.Second * 3,
-		cache:           lrucache.NewLRUCache[cacheKey](500),
+		cache:           lrucache.NewLRUCache[cacheKey](1000),
 		mu:              make(map[string]*sync.Mutex),
 	}
 	return singletonInstance
@@ -484,6 +484,54 @@ func (ds *dataService) GetAlbertaBPA(ctx context.Context, year int) (<-chan abCr
 		}
 		value := abCredits.BasicPersonalAmount{Value: resp.GetBpaValue()}
 		if _, err = ds.cache.Add(bpaCacheKey, value); err != nil {
+			errChan <- err
+			return
+		}
+		out <- value
+	}()
+	return out, errChan
+
+}
+
+func (ds *dataService) GetRRSP(ctx context.Context, year int) (<-chan sharedEntities.RRSP, <-chan error) {
+	funcName := "GetRRSP"
+	ds.RegisterToMutex(funcName)
+	out := make(chan sharedEntities.RRSP)
+	errChan := make(chan error)
+	mu := ds.mu[funcName]
+	go func() {
+		defer close(out)
+		defer close(errChan)
+		mu.Lock()
+		defer mu.Unlock()
+		rrspCacheKey := cacheKey{region: canada.Federal, year: year, resource: funcName}
+		if value, cacheErr := ds.cache.Read(rrspCacheKey); cacheErr == nil {
+			out <- value.(sharedEntities.RRSP)
+			return
+		}
+		err := ds.generateDataServiceClient()
+		if err != nil {
+			errChan <- err
+			return
+		}
+		req := &dataProvider.GetRegisteredRetirementSavingsPlanRequest{
+			Year: int32(year),
+		}
+		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
+		defer cancel()
+		resp, err := ds.grpcClient.GetRegisteredRetirementSavingsPlan(ctx, req)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		value := sharedEntities.RRSP{
+			Year:                  year,
+			Rate:                  resp.GetRate(),
+			MaxContribution:       resp.GetMaxContribution(),
+			OverContributionRate:  resp.GetOverContributionRate(),
+			OverContributionLimit: resp.GetOverContributionLimit(),
+		}
+		if _, err = ds.cache.Add(rrspCacheKey, value); err != nil {
 			errChan <- err
 			return
 		}
