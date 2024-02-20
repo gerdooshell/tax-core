@@ -2,6 +2,9 @@ package main
 
 import (
 	"flag"
+	"runtime"
+	"time"
+
 	restApi "github.com/gerdooshell/tax-core/controller/rest_api"
 	"github.com/gerdooshell/tax-core/environment"
 )
@@ -21,5 +24,14 @@ func main() {
 	if err := environment.SetEnvironment(env); err != nil {
 		panic(err)
 	}
+	go runGC()
 	restApi.ServeHTTP()
+}
+
+func runGC() {
+	ticker := time.NewTicker(time.Minute)
+	for {
+		<-ticker.C
+		runtime.GC()
+	}
 }
