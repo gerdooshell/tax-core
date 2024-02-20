@@ -18,6 +18,11 @@ func NewPostgresServiceMock() dataAccess.DataProviderService {
 type postgresServiceMock struct {
 }
 
+func (pg *postgresServiceMock) GetRRSP(ctx context.Context, year int) (<-chan shared.RRSP, <-chan error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (pg *postgresServiceMock) GetTaxBrackets(ctx context.Context, year int, province canada.Province) (<-chan []shared.TaxBracket, <-chan error) {
 	//TODO implement me
 	panic("implement me")
@@ -36,6 +41,7 @@ func (pg *postgresServiceMock) SaveMarginalTaxBrackets(ctx context.Context, prov
 func (pg *postgresServiceMock) GetCPP(ctx context.Context, year int) (<-chan shared.CanadaPensionPlan, <-chan error) {
 	data := make(chan shared.CanadaPensionPlan)
 	go func() {
+		defer close(data)
 		data <- shared.CanadaPensionPlan{
 			Year:                            year,
 			BasicExemption:                  3500,
@@ -52,9 +58,10 @@ func (pg *postgresServiceMock) GetCPP(ctx context.Context, year int) (<-chan sha
 	return data, nil
 }
 
-func (pg *postgresServiceMock) GetFederalBPA(_ context.Context, _ int) (<-chan fedCredits.BasicPersonalAmount, <-chan error) {
+func (pg *postgresServiceMock) GetFederalBPA(ctx context.Context, year int) (<-chan fedCredits.BasicPersonalAmount, <-chan error) {
 	data := make(chan fedCredits.BasicPersonalAmount)
 	go func() {
+		defer close(data)
 		data <- fedCredits.BasicPersonalAmount{
 			MaxBPAIncome: 165430,
 			MinBPAIncome: 235675,
@@ -68,6 +75,7 @@ func (pg *postgresServiceMock) GetFederalBPA(_ context.Context, _ int) (<-chan f
 func (pg *postgresServiceMock) GetEIPremium(_ context.Context, _ int) (<-chan shared.EmploymentInsurancePremium, <-chan error) {
 	data := make(chan shared.EmploymentInsurancePremium)
 	go func() {
+		defer close(data)
 		data <- shared.EmploymentInsurancePremium{
 			MaxInsurableEarning:               61500,
 			Rate:                              1.63,
@@ -92,13 +100,17 @@ func (pg *postgresServiceMock) GetFederalTaxBrackets(_ context.Context, _ int) (
 
 func (pg *postgresServiceMock) GetBCBPA(_ context.Context, _ int) (<-chan bcCredits.BasicPersonalAmount, <-chan error) {
 	data := make(chan bcCredits.BasicPersonalAmount)
-	go func() { data <- bcCredits.BasicPersonalAmount{Value: 11981} }()
+	go func() {
+		defer close(data)
+		data <- bcCredits.BasicPersonalAmount{Value: 11981}
+	}()
 	return data, nil
 }
 
 func (pg *postgresServiceMock) GetBCTaxBrackets(_ context.Context, _ int) (<-chan []shared.TaxBracket, <-chan error) {
 	data := make(chan []shared.TaxBracket)
 	go func() {
+		defer close(data)
 		data <- []shared.TaxBracket{
 			{High: 45654, Low: 0, Rate: 5.06},
 			{High: 91310, Low: 45654, Rate: 7.7},
@@ -112,9 +124,10 @@ func (pg *postgresServiceMock) GetBCTaxBrackets(_ context.Context, _ int) (<-cha
 	return data, nil
 }
 
-func (pg *postgresServiceMock) GetCEA(_ context.Context, _ int) (<-chan fedCredits.CanadaEmploymentAmount, <-chan error) {
+func (pg *postgresServiceMock) GetCEA(ctx context.Context, year int) (<-chan fedCredits.CanadaEmploymentAmount, <-chan error) {
 	data := make(chan fedCredits.CanadaEmploymentAmount)
 	go func() {
+		defer close(data)
 		data <- fedCredits.CanadaEmploymentAmount{
 			Value: 1368,
 		}
