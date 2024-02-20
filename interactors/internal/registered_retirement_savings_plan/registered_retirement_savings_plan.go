@@ -2,7 +2,6 @@ package rrspCalculator
 
 import (
 	"context"
-	"fmt"
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
 )
@@ -40,8 +39,6 @@ func (rrsp *rrspImpl) GetRRSPLimits(ctx context.Context, year int, totalIncome f
 				return
 			}
 			rrspOutput.MaxContribution = rrspEntity.GetContribution()
-		case <-ctx.Done():
-			rrspOutput.Err = fmt.Errorf("processing rrsp limits canceled")
 		}
 	}()
 	return out
