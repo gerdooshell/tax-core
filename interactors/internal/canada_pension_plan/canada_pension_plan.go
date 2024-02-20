@@ -2,7 +2,6 @@ package cppCalculator
 
 import (
 	"context"
-	"fmt"
 
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
@@ -39,12 +38,12 @@ type canadaPensionPlanImpl struct {
 
 func (c *canadaPensionPlanImpl) GetCPPContribution(ctx context.Context, year int, totalIncome float64) <-chan CanadaPensionPlanOutput {
 	out := make(chan CanadaPensionPlanOutput)
-	cppChan, errChan := c.dataProvider.GetCPP(ctx, year)
 
 	go func() {
 		defer close(out)
 		var cppOutput CanadaPensionPlanOutput
 		defer func() { out <- cppOutput }()
+		cppChan, errChan := c.dataProvider.GetCPP(ctx, year)
 		select {
 		case cppOutput.Err = <-errChan:
 			return
@@ -61,8 +60,6 @@ func (c *canadaPensionPlanImpl) GetCPPContribution(ctx context.Context, year int
 			cppOutput.EmployeeSecondAdditional = c.cppEntity.GetCPPSecondAdditionalEmployee()
 			cppOutput.EmployerSecondAdditional = c.cppEntity.GetCPPSecondAdditionalEmployer()
 			cppOutput.SelfEmployedSecondAdditional = c.cppEntity.GetCPPSecondAdditionalSelfEmployed()
-		case <-ctx.Done():
-			cppOutput.Err = fmt.Errorf("processing canada pension plan canceled")
 		}
 	}()
 	return out

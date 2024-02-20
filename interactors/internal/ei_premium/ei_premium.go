@@ -2,7 +2,6 @@ package eipCalculator
 
 import (
 	"context"
-	"fmt"
 
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
@@ -32,12 +31,12 @@ type EIPremiumOutput struct {
 
 func (eip *eiPremiumImpl) GetEIContribution(ctx context.Context, year int, totalIncome float64) <-chan EIPremiumOutput {
 	out := make(chan EIPremiumOutput)
-	eiChan, errChan := eip.dataProvider.GetEIPremium(ctx, year)
 
 	go func() {
 		defer close(out)
 		var eipOutput EIPremiumOutput
 		defer func() { out <- eipOutput }()
+		eiChan, errChan := eip.dataProvider.GetEIPremium(ctx, year)
 		select {
 		case eipOutput.Err = <-errChan:
 			return
@@ -47,8 +46,6 @@ func (eip *eiPremiumImpl) GetEIContribution(ctx context.Context, year int, total
 			}
 			eipOutput.Employee = eip.eiEntity.GetEIEmployee()
 			eipOutput.Employer = eip.eiEntity.GetEIEmployer()
-		case <-ctx.Done():
-			eipOutput.Err = fmt.Errorf("processing ei premium canceled")
 		}
 	}()
 	return out

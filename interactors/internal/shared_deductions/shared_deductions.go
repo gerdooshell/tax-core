@@ -2,7 +2,6 @@ package sharedDeductions
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/gerdooshell/tax-core/interactors/internal/canada_pension_plan"
 )
@@ -37,16 +36,10 @@ func (t *taxDeductionsImpl) GetTaxDeductions(ctx context.Context, year int, tota
 		defer close(out)
 		taxDeductionsOutput := TaxDeductionsOutput{}
 		defer func() { out <- taxDeductionsOutput }()
-		var canadaPensionPlan cppCalculator.CanadaPensionPlanOutput
-		select {
-		case <-ctx.Done():
-			taxDeductionsOutput.Err = fmt.Errorf("processing tax deductions canceled")
+		canadaPensionPlan := <-t.cpp.GetCPPContribution(ctx, year, totalIncome)
+		if canadaPensionPlan.Err != nil {
+			taxDeductionsOutput.Err = canadaPensionPlan.Err
 			return
-		case canadaPensionPlan = <-t.cpp.GetCPPContribution(ctx, year, totalIncome):
-			if canadaPensionPlan.Err != nil {
-				taxDeductionsOutput.Err = canadaPensionPlan.Err
-				return
-			}
 		}
 		taxDeductionsOutput.CPPFirstAdditionalEmployee = canadaPensionPlan.EmployeeFirstAdditional
 		taxDeductionsOutput.CPPSecondAdditionalEmployee = canadaPensionPlan.EmployeeSecondAdditional

@@ -2,7 +2,6 @@ package taxCalculator
 
 import (
 	"context"
-	"fmt"
 
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
@@ -54,9 +53,6 @@ func (t *totalTaxImpl) applyTaxBrackets(ctx context.Context, year int, province 
 				totalTaxOutput.Err = err
 			}
 			totalTaxOutput.Value = taxEntity.GetValue()
-		case <-ctx.Done():
-			totalTaxOutput.Err = fmt.Errorf("processing tax brackets canceled")
-			return
 		}
 	}()
 	return out

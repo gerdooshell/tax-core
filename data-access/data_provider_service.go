@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"sync"
-	"time"
 
 	abCredits "github.com/gerdooshell/tax-core/entities/canada/alberta/credits"
 	bcCredits "github.com/gerdooshell/tax-core/entities/canada/bc/credits"
@@ -28,13 +27,16 @@ type cacheKey struct {
 	resource string
 }
 
+var instanceMu sync.Mutex
+
 func GetDataProviderServiceInstance() DataProviderService {
+	instanceMu.Lock()
+	defer instanceMu.Unlock()
 	if singletonInstance != nil {
 		return singletonInstance
 	}
 	singletonInstance = &dataService{
 		dataProviderUrl: getDataProviderUrl(),
-		timeout:         time.Second * 3,
 		cache:           lrucache.NewLRUCache[cacheKey](1000),
 		mu:              make(map[string]*sync.Mutex),
 	}
@@ -51,12 +53,15 @@ func getDataProviderUrl() string {
 type dataService struct {
 	dataProviderUrl string
 	grpcClient      dataProvider.GRPCDataProviderClient
-	timeout         time.Duration
 	cache           lrucache.LRUCache[cacheKey]
 	mu              map[string]*sync.Mutex
 }
 
+var dialMu sync.Mutex
+
 func (ds *dataService) generateDataServiceClient() error {
+	dialMu.Lock()
+	defer dialMu.Unlock()
 	if ds.grpcClient != nil {
 		return nil
 	}
@@ -73,7 +78,7 @@ func (ds *dataService) generateDataServiceClient() error {
 
 var mapMu sync.Mutex
 
-func (ds *dataService) RegisterToMutex(funcName string) {
+func (ds *dataService) registerToMutex(funcName string) {
 	mapMu.Lock()
 	defer mapMu.Unlock()
 	if _, ok := ds.mu[funcName]; ok {
@@ -83,12 +88,19 @@ func (ds *dataService) RegisterToMutex(funcName string) {
 	ds.mu[funcName] = &mu
 }
 
+func (ds *dataService) readFromMutex(funcName string) (*sync.Mutex, bool) {
+	mapMu.Lock()
+	defer mapMu.Unlock()
+	mu, ok := ds.mu[funcName]
+	return mu, ok
+}
+
 func (ds *dataService) SaveMarginalTaxBrackets(ctx context.Context, province canada.Province, year int, brackets []sharedEntities.TaxBracket) (<-chan bool, <-chan error) {
 	funcName := "SaveMarginalTaxBrackets"
-	ds.RegisterToMutex(funcName)
+	ds.registerToMutex(funcName)
 	out := make(chan bool)
 	errChan := make(chan error)
-	mu := ds.mu[funcName]
+	mu, _ := ds.readFromMutex(funcName)
 	go func() {
 		defer close(out)
 		defer close(errChan)
@@ -108,8 +120,6 @@ func (ds *dataService) SaveMarginalTaxBrackets(ctx context.Context, province can
 			Province: string(province),
 			Brackets: reqBrackets,
 		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
 		resp, err := ds.grpcClient.SaveCombinedMarginalBrackets(ctx, req)
 		if err != nil {
 			errChan <- err
@@ -125,10 +135,10 @@ func (ds *dataService) SaveMarginalTaxBrackets(ctx context.Context, province can
 
 func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntities.CanadaPensionPlan, <-chan error) {
 	funcName := "GetCPP"
-	ds.RegisterToMutex(funcName)
+	ds.registerToMutex(funcName)
 	out := make(chan sharedEntities.CanadaPensionPlan)
 	errChan := make(chan error)
-	mu := ds.mu[funcName]
+	mu, _ := ds.readFromMutex(funcName)
 	go func() {
 		defer close(out)
 		defer close(errChan)
@@ -139,6 +149,7 @@ func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntit
 			out <- value.(sharedEntities.CanadaPensionPlan)
 			return
 		}
+
 		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
@@ -147,8 +158,6 @@ func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntit
 		req := &dataProvider.GetCanadaPensionPlanRequest{
 			Year: int32(year),
 		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
 		resp, err := ds.grpcClient.GetCanadaPensionPlan(ctx, req)
 		if err != nil {
 			errChan <- err
@@ -170,17 +179,16 @@ func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntit
 			errChan <- err
 			return
 		}
-		out <- value
 	}()
 	return out, errChan
 }
 
 func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan sharedEntities.EmploymentInsurancePremium, <-chan error) {
 	funcName := "GetEIPremium"
-	ds.RegisterToMutex(funcName)
+	ds.registerToMutex(funcName)
 	out := make(chan sharedEntities.EmploymentInsurancePremium)
 	errChan := make(chan error)
-	mu := ds.mu[funcName]
+	mu, _ := ds.readFromMutex(funcName)
 	go func() {
 		defer close(out)
 		defer close(errChan)
@@ -199,8 +207,6 @@ func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan share
 		req := &dataProvider.GetEmploymentInsurancePremiumRequest{
 			Year: int32(year),
 		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
 		resp, err := ds.grpcClient.GetEmploymentInsurancePremium(ctx, req)
 		if err != nil {
 			errChan <- err
@@ -222,10 +228,10 @@ func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan share
 
 func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan federalEntities.BasicPersonalAmount, <-chan error) {
 	funcName := "GetFederalBPA"
-	ds.RegisterToMutex(funcName)
+	ds.registerToMutex(funcName)
 	out := make(chan federalEntities.BasicPersonalAmount)
 	errChan := make(chan error)
-	mu := ds.mu[funcName]
+	mu, _ := ds.readFromMutex(funcName)
 	go func() {
 		defer close(out)
 		defer close(errChan)
@@ -244,8 +250,6 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan fede
 		req := &dataProvider.GetFederalBPARequest{
 			Year: int32(year),
 		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
 		resp, err := ds.grpcClient.GetFederalBPA(ctx, req)
 		if err != nil {
 			errChan <- err
@@ -261,17 +265,16 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan fede
 			errChan <- err
 			return
 		}
-		out <- value
 	}()
 	return out, errChan
 }
 
 func (ds *dataService) GetTaxBrackets(ctx context.Context, year int, province canada.Province) (<-chan []sharedEntities.TaxBracket, <-chan error) {
 	funcName := "GetTaxBrackets"
-	ds.RegisterToMutex(funcName)
+	ds.registerToMutex(funcName)
 	out := make(chan []sharedEntities.TaxBracket)
 	errChan := make(chan error)
-	mu := ds.mu[funcName]
+	mu, _ := ds.readFromMutex(funcName)
 	go func() {
 		defer close(out)
 		defer close(errChan)
@@ -291,8 +294,6 @@ func (ds *dataService) GetTaxBrackets(ctx context.Context, year int, province ca
 			Year:     int32(year),
 			Province: string(province),
 		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
 		resp, err := ds.grpcClient.GetTaxBrackets(ctx, req)
 		if err != nil {
 			errChan <- err
@@ -319,10 +320,10 @@ func (ds *dataService) GetTaxBrackets(ctx context.Context, year int, province ca
 }
 func (ds *dataService) GetCombinedMarginalBrackets(ctx context.Context, year int, province canada.Province) (<-chan []sharedEntities.TaxBracket, <-chan error) {
 	funcName := "GetCombinedMarginalBrackets"
-	ds.RegisterToMutex(funcName)
+	ds.registerToMutex(funcName)
 	out := make(chan []sharedEntities.TaxBracket)
 	errChan := make(chan error)
-	mu := ds.mu[funcName]
+	mu, _ := ds.readFromMutex(funcName)
 	go func() {
 		defer close(out)
 		defer close(errChan)
@@ -342,8 +343,6 @@ func (ds *dataService) GetCombinedMarginalBrackets(ctx context.Context, year int
 			Year:     int32(year),
 			Province: string(province),
 		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
 		resp, err := ds.grpcClient.GetCombinedMarginalBrackets(ctx, req)
 		if err != nil {
 			errChan <- err
@@ -371,10 +370,10 @@ func (ds *dataService) GetCombinedMarginalBrackets(ctx context.Context, year int
 
 func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan federalEntities.CanadaEmploymentAmount, <-chan error) {
 	funcName := "GetCEA"
-	ds.RegisterToMutex(funcName)
+	ds.registerToMutex(funcName)
 	out := make(chan federalEntities.CanadaEmploymentAmount)
 	errChan := make(chan error)
-	mu := ds.mu[funcName]
+	mu, _ := ds.readFromMutex(funcName)
 	go func() {
 		defer close(out)
 		defer close(errChan)
@@ -393,8 +392,6 @@ func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan federalEnti
 		req := &dataProvider.GetCanadaEmploymentAmountRequest{
 			Year: int32(year),
 		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
 		resp, err := ds.grpcClient.GetCEA(ctx, req)
 		if err != nil {
 			errChan <- err
@@ -407,15 +404,15 @@ func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan federalEnti
 		}
 		out <- value
 	}()
-	return out, errChan
+	return out, nil
 }
 
 func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits.BasicPersonalAmount, <-chan error) {
 	funcName := "GetBCBPA"
-	ds.RegisterToMutex(funcName)
+	ds.registerToMutex(funcName)
 	out := make(chan bcCredits.BasicPersonalAmount)
 	errChan := make(chan error)
-	mu := ds.mu[funcName]
+	mu, _ := ds.readFromMutex(funcName)
 	go func() {
 		defer close(out)
 		defer close(errChan)
@@ -434,8 +431,6 @@ func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits
 		req := &dataProvider.GetBritishColumbiaBPARequest{
 			Year: int32(year),
 		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
 		resp, err := ds.grpcClient.GetBritishColumbiaBPA(ctx, req)
 		if err != nil {
 			errChan <- err
@@ -453,10 +448,10 @@ func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits
 
 func (ds *dataService) GetAlbertaBPA(ctx context.Context, year int) (<-chan abCredits.BasicPersonalAmount, <-chan error) {
 	funcName := "GetAlbertaBPA"
-	ds.RegisterToMutex(funcName)
+	ds.registerToMutex(funcName)
 	out := make(chan abCredits.BasicPersonalAmount)
 	errChan := make(chan error)
-	mu := ds.mu[funcName]
+	mu, _ := ds.readFromMutex(funcName)
 	go func() {
 		defer close(out)
 		defer close(errChan)
@@ -475,8 +470,6 @@ func (ds *dataService) GetAlbertaBPA(ctx context.Context, year int) (<-chan abCr
 		req := &dataProvider.GetAlbertaBPARequest{
 			Year: int32(year),
 		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
 		resp, err := ds.grpcClient.GetAlbertaBPA(ctx, req)
 		if err != nil {
 			errChan <- err
@@ -495,10 +488,10 @@ func (ds *dataService) GetAlbertaBPA(ctx context.Context, year int) (<-chan abCr
 
 func (ds *dataService) GetRRSP(ctx context.Context, year int) (<-chan sharedEntities.RRSP, <-chan error) {
 	funcName := "GetRRSP"
-	ds.RegisterToMutex(funcName)
+	ds.registerToMutex(funcName)
 	out := make(chan sharedEntities.RRSP)
 	errChan := make(chan error)
-	mu := ds.mu[funcName]
+	mu, _ := ds.readFromMutex(funcName)
 	go func() {
 		defer close(out)
 		defer close(errChan)
@@ -517,8 +510,6 @@ func (ds *dataService) GetRRSP(ctx context.Context, year int) (<-chan sharedEnti
 		req := &dataProvider.GetRegisteredRetirementSavingsPlanRequest{
 			Year: int32(year),
 		}
-		ctx, cancel := context.WithTimeout(ctx, ds.timeout)
-		defer cancel()
 		resp, err := ds.grpcClient.GetRegisteredRetirementSavingsPlan(ctx, req)
 		if err != nil {
 			errChan <- err

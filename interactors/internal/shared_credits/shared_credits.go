@@ -2,7 +2,6 @@ package sharedCredits
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/gerdooshell/tax-core/interactors/internal/canada_employment_amount"
 	"github.com/gerdooshell/tax-core/interactors/internal/canada_pension_plan"
@@ -62,50 +61,26 @@ func (t *taxCreditImpl) GetTaxCredits(ctx context.Context, year int, province ca
 			taxCreditsOutput.Err = canadaEmploymentAmount.Err
 			return
 		}
-		var eiPremium eipCalculator.EIPremiumOutput
-		select {
-		case eiPremium = <-eipChan:
-			if eiPremium.Err != nil {
-				taxCreditsOutput.Err = eiPremium.Err
-				return
-			}
-		case <-ctx.Done():
-			taxCreditsOutput.Err = fmt.Errorf("processing tax credits canceled")
+		eiPremium := <-eipChan
+		if eiPremium.Err != nil {
+			taxCreditsOutput.Err = eiPremium.Err
 			return
 		}
 
-		var canadaPensionPlan cppCalculator.CanadaPensionPlanOutput
-		select {
-		case canadaPensionPlan = <-cppChan:
-			if canadaPensionPlan.Err != nil {
-				taxCreditsOutput.Err = canadaPensionPlan.Err
-				return
-			}
-		case <-ctx.Done():
-			taxCreditsOutput.Err = fmt.Errorf("processing tax credits canceled")
+		canadaPensionPlan := <-cppChan
+		if canadaPensionPlan.Err != nil {
+			taxCreditsOutput.Err = canadaPensionPlan.Err
 			return
 		}
 
-		var federalBasicPensionAmount federalBPA.FederalBasicPersonalAmountOutput
-		select {
-		case federalBasicPensionAmount = <-fedBPAChan:
-			if federalBasicPensionAmount.Err != nil {
-				taxCreditsOutput.Err = federalBasicPensionAmount.Err
-				return
-			}
-		case <-ctx.Done():
-			taxCreditsOutput.Err = fmt.Errorf("processing tax credits canceled")
+		federalBasicPensionAmount := <-fedBPAChan
+		if federalBasicPensionAmount.Err != nil {
+			taxCreditsOutput.Err = federalBasicPensionAmount.Err
 			return
 		}
-		var regionalBasicPersonalAmount regionalBPA.RegionalBasicPersonalAmountOutput
-		select {
-		case regionalBasicPersonalAmount = <-regionalBPAChan:
-			if regionalBasicPersonalAmount.Err != nil {
-				taxCreditsOutput.Err = regionalBasicPersonalAmount.Err
-				return
-			}
-		case <-ctx.Done():
-			taxCreditsOutput.Err = fmt.Errorf("processing tax credits canceled")
+		regionalBasicPersonalAmount := <-regionalBPAChan
+		if regionalBasicPersonalAmount.Err != nil {
+			taxCreditsOutput.Err = regionalBasicPersonalAmount.Err
 			return
 		}
 		taxCreditsOutput.CanadaEmploymentAmount = canadaEmploymentAmount.Value
