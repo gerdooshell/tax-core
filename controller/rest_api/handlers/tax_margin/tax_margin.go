@@ -5,17 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"strconv"
-	"time"
-
 	"github.com/gerdooshell/tax-core/controller/internal"
 	"github.com/gerdooshell/tax-core/controller/internal/routes"
 	restApi "github.com/gerdooshell/tax-core/controller/rest_api/handlers"
 	"github.com/gerdooshell/tax-core/entities/canada/shared"
 	canadaTaxMarginCalculator "github.com/gerdooshell/tax-core/interactors/controller_access/canada_tax_margin_calculator"
 	"github.com/gerdooshell/tax-core/library/region/canada"
+	"io"
+	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
@@ -73,10 +71,8 @@ func (tc *taxMargin) ParseArgs(r *http.Request) (*http.Request, error) {
 func (tc *taxMargin) Process(r *http.Request) *http.Response {
 	resp := new(http.Response)
 	state := r.Context().Value("state").(State)
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*5)
-	defer cancel()
 	marginalTax := canadaTaxMarginCalculator.NewCanadaTaxMarginCalculator()
-	out, err := marginalTax.GetAllMarginalBrackets(ctx, state.input)
+	out, err := marginalTax.GetAllMarginalBrackets(r.Context(), state.input)
 	if err != nil {
 		resp.Body = io.NopCloser(bytes.NewReader([]byte(err.Error())))
 		resp.StatusCode = http.StatusInternalServerError
