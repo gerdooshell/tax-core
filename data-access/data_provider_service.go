@@ -3,9 +3,6 @@ package dataAccess
 import (
 	"context"
 	"fmt"
-	"math"
-	"sync"
-
 	abCredits "github.com/gerdooshell/tax-core/entities/canada/alberta/credits"
 	bcCredits "github.com/gerdooshell/tax-core/entities/canada/bc/credits"
 	federalEntities "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
@@ -13,10 +10,12 @@ import (
 	"github.com/gerdooshell/tax-core/environment"
 	"github.com/gerdooshell/tax-core/library/cache/lrucache"
 	"github.com/gerdooshell/tax-core/library/region/canada"
+	"google.golang.org/grpc/credentials/insecure"
+	"math"
+	"sync"
 
 	dataProvider "github.com/gerdooshell/tax-communication/src/data_provider"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 var singletonInstance *dataService
@@ -149,7 +148,6 @@ func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntit
 			out <- value.(sharedEntities.CanadaPensionPlan)
 			return
 		}
-
 		err := ds.generateDataServiceClient()
 		if err != nil {
 			errChan <- err
@@ -179,6 +177,7 @@ func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntit
 			errChan <- err
 			return
 		}
+		out <- value
 	}()
 	return out, errChan
 }
@@ -265,6 +264,7 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan fede
 			errChan <- err
 			return
 		}
+		out <- value
 	}()
 	return out, errChan
 }
@@ -404,7 +404,7 @@ func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan federalEnti
 		}
 		out <- value
 	}()
-	return out, nil
+	return out, errChan
 }
 
 func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits.BasicPersonalAmount, <-chan error) {
