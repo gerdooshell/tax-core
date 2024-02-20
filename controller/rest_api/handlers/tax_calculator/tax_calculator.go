@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gerdooshell/tax-core/controller/internal"
 	"github.com/gerdooshell/tax-core/controller/internal/routes"
@@ -20,7 +19,6 @@ import (
 )
 
 type taxCalculator struct {
-	state *State
 }
 
 func NewTaxCalculatorController() restApi.Handler {
@@ -93,8 +91,7 @@ func (tc *taxCalculator) ParseArgs(r *http.Request) (*http.Request, error) {
 func (tc *taxCalculator) Process(r *http.Request) *http.Response {
 	resp := new(http.Response)
 	state := r.Context().Value("state").(State)
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*5)
-	defer cancel()
+	ctx := r.Context()
 	calculator := canadaTaxInfo.NewCanadaTaxInfo()
 	out, err := calculator.CalculateLegacyTax(ctx, state.input)
 	if err != nil {
