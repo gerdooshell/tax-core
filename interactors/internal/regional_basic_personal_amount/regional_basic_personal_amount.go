@@ -27,7 +27,7 @@ type regionalBPAImpl struct {
 }
 
 func (r *regionalBPAImpl) GetRegionalBPA(ctx context.Context, year int, totalIncome float64, province canada.Province) <-chan RegionalBasicPersonalAmountOutput {
-	out := make(chan RegionalBasicPersonalAmountOutput)
+	out := make(chan RegionalBasicPersonalAmountOutput, 1)
 	go func() {
 		defer close(out)
 		regionalBPAOutput := RegionalBasicPersonalAmountOutput{}

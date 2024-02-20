@@ -25,7 +25,7 @@ type rrspImpl struct {
 }
 
 func (rrsp *rrspImpl) GetRRSPLimits(ctx context.Context, year int, totalIncome float64) <-chan RRSPOutput {
-	out := make(chan RRSPOutput)
+	out := make(chan RRSPOutput, 1)
 	go func() {
 		defer close(out)
 		rrspOutput := RRSPOutput{}

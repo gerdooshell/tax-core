@@ -37,7 +37,7 @@ type canadaPensionPlanImpl struct {
 }
 
 func (c *canadaPensionPlanImpl) GetCPPContribution(ctx context.Context, year int, totalIncome float64) <-chan CanadaPensionPlanOutput {
-	out := make(chan CanadaPensionPlanOutput)
+	out := make(chan CanadaPensionPlanOutput, 1)
 
 	go func() {
 		defer close(out)

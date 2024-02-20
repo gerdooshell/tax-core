@@ -2,7 +2,6 @@ package sharedDeductions
 
 import (
 	"context"
-
 	"github.com/gerdooshell/tax-core/interactors/internal/canada_pension_plan"
 )
 
@@ -31,7 +30,7 @@ type taxDeductionsImpl struct {
 }
 
 func (t *taxDeductionsImpl) GetTaxDeductions(ctx context.Context, year int, totalIncome float64) <-chan TaxDeductionsOutput {
-	out := make(chan TaxDeductionsOutput)
+	out := make(chan TaxDeductionsOutput, 1)
 	go func() {
 		defer close(out)
 		taxDeductionsOutput := TaxDeductionsOutput{}

@@ -66,7 +66,7 @@ func (tm *taxMarginsCa) GetCombinedMarginalBrackets(ctx context.Context, input m
 }
 
 func (tm *taxMarginsCa) getFederalBrackets(ctx context.Context, input marginDS.Input) <-chan error {
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		defer close(errChan)
 		var err error
@@ -81,7 +81,7 @@ func (tm *taxMarginsCa) getFederalBrackets(ctx context.Context, input marginDS.I
 }
 
 func (tm *taxMarginsCa) getRegionalBrackets(ctx context.Context, input marginDS.Input) <-chan error {
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		defer close(errChan)
 		var err error

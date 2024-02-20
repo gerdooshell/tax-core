@@ -2,7 +2,6 @@ package ceaCalculator
 
 import (
 	"context"
-
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	federalEntities "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
@@ -29,7 +28,7 @@ type canadaEmploymentAmountImpl struct {
 }
 
 func (cea *canadaEmploymentAmountImpl) GetCEACredit(ctx context.Context, year int, totalIncome float64) <-chan CanadaEmploymentAmountOutput {
-	out := make(chan CanadaEmploymentAmountOutput)
+	out := make(chan CanadaEmploymentAmountOutput, 1)
 	go func() {
 		defer close(out)
 		var ceaOutput CanadaEmploymentAmountOutput

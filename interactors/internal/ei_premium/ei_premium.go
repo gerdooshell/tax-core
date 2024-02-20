@@ -2,7 +2,6 @@ package eipCalculator
 
 import (
 	"context"
-
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
@@ -30,7 +29,7 @@ type EIPremiumOutput struct {
 }
 
 func (eip *eiPremiumImpl) GetEIContribution(ctx context.Context, year int, totalIncome float64) <-chan EIPremiumOutput {
-	out := make(chan EIPremiumOutput)
+	out := make(chan EIPremiumOutput, 1)
 
 	go func() {
 		defer close(out)

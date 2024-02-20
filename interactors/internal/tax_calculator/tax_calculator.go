@@ -2,7 +2,6 @@ package taxCalculator
 
 import (
 	"context"
-
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
@@ -38,7 +37,7 @@ func (t *totalTaxImpl) GetReducedTaxCredit(ctx context.Context, year int, provin
 }
 
 func (t *totalTaxImpl) applyTaxBrackets(ctx context.Context, year int, province canada.Province, amount float64, isCredit bool) <-chan TotalTaxOutput {
-	out := make(chan TotalTaxOutput)
+	out := make(chan TotalTaxOutput, 1)
 	go func() {
 		defer close(out)
 		totalTaxOutput := TotalTaxOutput{}

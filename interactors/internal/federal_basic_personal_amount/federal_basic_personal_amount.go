@@ -27,7 +27,7 @@ type federalBPAImpl struct {
 }
 
 func (f *federalBPAImpl) GetFederalBPA(ctx context.Context, year int, totalIncome float64) <-chan FederalBasicPersonalAmountOutput {
-	out := make(chan FederalBasicPersonalAmountOutput)
+	out := make(chan FederalBasicPersonalAmountOutput, 1)
 	go func() {
 		defer close(out)
 		federalBPAOutput := FederalBasicPersonalAmountOutput{}
