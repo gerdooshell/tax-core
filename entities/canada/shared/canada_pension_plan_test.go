@@ -27,13 +27,11 @@ func TestCanadaPensionPlan_Calculate(t *testing.T) {
 	type args struct {
 		totalIncome float64
 	}
-	tests := []struct {
+	var tests []struct {
 		name    string
 		fields  fields
 		args    args
 		wantErr bool
-	}{
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

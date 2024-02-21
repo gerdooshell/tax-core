@@ -11,14 +11,27 @@ type Tax struct {
 	calculatedAmount float64
 }
 
-func (t *Tax) Calculate(taxableIncome float64) error {
-	if err := t.validateParameters(taxableIncome); err != nil {
+func (t *Tax) Calculate(amount float64, isCredit bool) (err error) {
+	if err = t.validateParameters(amount); err != nil {
 		return err
 	}
-	sort.Slice(t.TaxBrackets[:], func(i, j int) bool {
+	sort.Slice(t.TaxBrackets, func(i, j int) bool {
 		return t.TaxBrackets[i].Low < t.TaxBrackets[j].Low
 	})
 
+	if isCredit {
+		t.calculateTaxCredit(amount)
+		return
+	}
+	t.calculateTax(amount)
+	return
+}
+
+func (t *Tax) GetValue() float64 {
+	return t.calculatedAmount
+}
+
+func (t *Tax) calculateTax(taxableIncome float64) {
 	t.calculatedAmount = 0
 	for _, element := range t.TaxBrackets {
 		if taxableIncome >= element.Low && taxableIncome < element.High {
@@ -29,11 +42,11 @@ func (t *Tax) Calculate(taxableIncome float64) error {
 		}
 	}
 	t.calculatedAmount = mathHelper.RoundFloat64(t.calculatedAmount, 2)
-	return nil
 }
 
-func (t *Tax) GetValue() float64 {
-	return t.calculatedAmount
+func (t *Tax) calculateTaxCredit(totalCredits float64) {
+	t.calculatedAmount = totalCredits * t.TaxBrackets[0].Rate / 100
+	t.calculatedAmount = mathHelper.RoundFloat64(t.calculatedAmount, 2)
 }
 
 func (t *Tax) validateParameters(taxableIncome float64) error {

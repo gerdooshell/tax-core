@@ -46,7 +46,7 @@ func TestBasicPensionAmount_GetValue(t *testing.T) {
 				Value: tt.fields.Value,
 			}
 			if got := bpa.GetValue(); got != tt.want {
-				t.Errorf("GetValue() = %v, want %v", got, tt.want)
+				t.Errorf("GetEmployeeValue() = %v, want %v", got, tt.want)
 			}
 		})
 	}

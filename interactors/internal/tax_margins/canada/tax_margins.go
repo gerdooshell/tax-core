@@ -30,6 +30,8 @@ type taxMarginsCa struct {
 
 func (tm *taxMarginsCa) GetCombinedMarginalBrackets(ctx context.Context, input marginDS.Input) (out marginDS.Output, err error) {
 	bracketsCahn, errChan := tm.dataProvider.GetCombinedMarginalBrackets(ctx, input.Year, input.Province)
+	errRegChan := tm.getFederalBrackets(ctx, input)
+	errFedChan := tm.getRegionalBrackets(ctx, input)
 	select {
 	case getError := <-errChan:
 		fmt.Printf("failed getting combined marginal brackets: %v\n", getError)
@@ -40,8 +42,7 @@ func (tm *taxMarginsCa) GetCombinedMarginalBrackets(ctx context.Context, input m
 		out.Brackets = brackets
 		return
 	}
-	errRegChan := tm.getFederalBrackets(ctx, input)
-	errFedChan := tm.getRegionalBrackets(ctx, input)
+
 	if err = <-errFedChan; err != nil {
 		return
 	}
@@ -66,7 +67,7 @@ func (tm *taxMarginsCa) GetCombinedMarginalBrackets(ctx context.Context, input m
 }
 
 func (tm *taxMarginsCa) getFederalBrackets(ctx context.Context, input marginDS.Input) <-chan error {
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		defer close(errChan)
 		var err error
@@ -81,7 +82,7 @@ func (tm *taxMarginsCa) getFederalBrackets(ctx context.Context, input marginDS.I
 }
 
 func (tm *taxMarginsCa) getRegionalBrackets(ctx context.Context, input marginDS.Input) <-chan error {
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		defer close(errChan)
 		var err error

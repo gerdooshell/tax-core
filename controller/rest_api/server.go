@@ -3,14 +3,16 @@ package restApi
 import (
 	"flag"
 	"fmt"
-	taxMargin "github.com/gerdooshell/tax-core/controller/rest_api/handlers/tax_margin"
-	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gerdooshell/tax-core/controller/rest_api/handlers"
 	taxCalculator "github.com/gerdooshell/tax-core/controller/rest_api/handlers/tax_calculator"
+	taxMargin "github.com/gerdooshell/tax-core/controller/rest_api/handlers/tax_margin"
+
+	"github.com/gorilla/mux"
 )
 
 func ServeHTTP() {
@@ -21,7 +23,8 @@ func ServeHTTP() {
 	for _, handler := range apiHandlers {
 		RegisterMuxHTTP(muxRouter, handler)
 	}
-	launchHTTPServer(muxRouter)
+	launchHTTPServerMux(muxRouter)
+	//launchHTTPServer(muxRouter)
 }
 
 func RegisterHTTP(handler handlers.Handler) {
@@ -68,6 +71,19 @@ func launchHTTPServer(handler http.Handler) {
 	addrFlag := flag.String("addr", ":8185", "address to run unified server on")
 	fmt.Println("http server ready")
 	_ = http.ListenAndServe(*addrFlag, handler)
+}
+
+func launchHTTPServerMux(handler http.Handler) {
+	server := &http.Server{
+		Addr:              ":8185",
+		Handler:           handler,
+		ReadTimeout:       time.Second * 2,
+		ReadHeaderTimeout: time.Second * 2,
+		WriteTimeout:      time.Second * 5,
+		IdleTimeout:       time.Second * 5,
+	}
+	fmt.Println("http server ready")
+	_ = server.ListenAndServe()
 }
 
 func createHTTPHandler(handler handlers.Handler) http.Handler {

@@ -8,20 +8,17 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gerdooshell/tax-core/controller/internal"
 	"github.com/gerdooshell/tax-core/controller/internal/routes"
 	restApi "github.com/gerdooshell/tax-core/controller/rest_api/handlers"
-	canadaTaxCalculator "github.com/gerdooshell/tax-core/interactors/controller_access/canada_tax_calculator"
-	canadaTaxImplementation "github.com/gerdooshell/tax-core/interactors/controller_access/canada_tax_calculator/implementation"
+	canadaTaxInfo "github.com/gerdooshell/tax-core/interactors/controller_access/canada_tax_info"
 	"github.com/gerdooshell/tax-core/library/region/canada"
 
 	"github.com/gorilla/mux"
 )
 
 type taxCalculator struct {
-	state *State
 }
 
 func NewTaxCalculatorController() restApi.Handler {
@@ -29,7 +26,7 @@ func NewTaxCalculatorController() restApi.Handler {
 }
 
 type State struct {
-	input  *canadaTaxCalculator.Input
+	input  *canadaTaxInfo.Input
 	apiKey string
 }
 
@@ -73,10 +70,10 @@ func (tc *taxCalculator) ParseArgs(r *http.Request) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	input := canadaTaxCalculator.Input{
-		Province: province,
-		Year:     year,
-		Salary:   income,
+	input := canadaTaxInfo.Input{
+		Province:    province,
+		Year:        year,
+		TotalIncome: income,
 	}
 	if err != nil {
 		return nil, err
@@ -94,10 +91,9 @@ func (tc *taxCalculator) ParseArgs(r *http.Request) (*http.Request, error) {
 func (tc *taxCalculator) Process(r *http.Request) *http.Response {
 	resp := new(http.Response)
 	state := r.Context().Value("state").(State)
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*5)
-	defer cancel()
-	calculator := canadaTaxImplementation.NewCanadaTaxCalculator()
-	out, err := calculator.Calculate(ctx, state.input)
+	ctx := r.Context()
+	calculator := canadaTaxInfo.NewCanadaTaxInfo()
+	out, err := calculator.CalculateLegacyTax(ctx, state.input)
 	if err != nil {
 		resp.Body = io.NopCloser(bytes.NewReader([]byte(err.Error())))
 		resp.StatusCode = http.StatusInternalServerError
@@ -120,8 +116,8 @@ func validateInput(state State) error {
 	if state.input.Year <= 0 {
 		return fmt.Errorf("invalid year \"%v\"", state.input.Year)
 	}
-	if state.input.Salary <= 0 {
-		return fmt.Errorf("invalid income \"%v\"", state.input.Salary)
+	if state.input.TotalIncome <= 0 {
+		return fmt.Errorf("invalid income \"%v\"", state.input.TotalIncome)
 	}
 	if state.input.Province == canada.Federal {
 		return fmt.Errorf("invalid province \"%v\"", state.input.Province)
@@ -144,7 +140,7 @@ type ResponseBodyModel struct {
 	TaxDeductions      TaxDeductionModel `json:"tax_deductions"`
 }
 
-func NewResponseBodyModelFrom(out canadaTaxCalculator.Output) ResponseBodyModel {
+func NewResponseBodyModelFrom(out canadaTaxInfo.Output) ResponseBodyModel {
 	return ResponseBodyModel{
 		FederalPayableTax:  out.FederalPayableTax,
 		FederalTotalTax:    out.FederalTotalTax,
