@@ -38,8 +38,8 @@ func (t *taxInfoImpl) CalculateLegacyTax(ctx context.Context, input *Input) (out
 
 	go t.calculateLegacyCredits(ctx, input, &wg, &out, &err, &totalFederalCredits, &totalRegionalCredits)
 	wg.Wait()
-	out.FederalPayableTax = mathHelper.RoundFloat64(out.FederalTotalTax-totalFederalCredits, 2)
-	out.RegionalPayableTax = mathHelper.RoundFloat64(out.RegionalTotalTax-totalRegionalCredits, 2)
+	out.FederalPayableTax = max(mathHelper.RoundFloat64(out.FederalTotalTax-totalFederalCredits, 2), 0)
+	out.RegionalPayableTax = max(mathHelper.RoundFloat64(out.RegionalTotalTax-totalRegionalCredits, 2), 0)
 	return
 }
 
