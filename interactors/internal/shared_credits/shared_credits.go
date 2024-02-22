@@ -46,7 +46,7 @@ type taxCreditImpl struct {
 }
 
 func (t *taxCreditImpl) GetTaxCredits(ctx context.Context, year int, province canada.Province, totalIncome float64) <-chan TaxCreditsOutput {
-	out := make(chan TaxCreditsOutput)
+	out := make(chan TaxCreditsOutput, 1)
 	go func() {
 		defer close(out)
 		taxCreditsOutput := TaxCreditsOutput{}
