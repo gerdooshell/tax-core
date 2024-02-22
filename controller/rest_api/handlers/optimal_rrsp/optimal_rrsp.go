@@ -70,7 +70,7 @@ func (o optimalRRSPController) ParseArgs(r *http.Request) (*http.Request, error)
 	if err != nil {
 		return nil, err
 	}
-	rrspStr, ok := pathVars["contributed-rrsp"]
+	rrspStr, ok := pathVars["rrsp"]
 	if !ok {
 		return nil, fmt.Errorf("rrsp is not provided")
 	}
