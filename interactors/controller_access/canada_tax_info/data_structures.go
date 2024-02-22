@@ -6,6 +6,7 @@ type Input struct {
 	Province    canada.Province
 	TotalIncome float64
 	Year        int
+	RRSP        float64
 }
 
 type Output struct {
@@ -15,6 +16,7 @@ type Output struct {
 	FederalTotalTax    float64
 	RegionalPayableTax float64
 	RegionalTotalTax   float64
+	LeftRRSPRoom       float64
 }
 
 type TaxCredits struct {

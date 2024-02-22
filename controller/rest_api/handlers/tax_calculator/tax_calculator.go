@@ -70,10 +70,19 @@ func (tc *taxCalculator) ParseArgs(r *http.Request) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+	rrspStr, ok := pathVars["rrsp"]
+	if !ok {
+		return nil, fmt.Errorf("rrsp is not provided")
+	}
+	rrsp, err := strconv.ParseFloat(rrspStr, 64)
+	if err != nil {
+		return nil, err
+	}
 	input := canadaTaxInfo.Input{
 		Province:    province,
 		Year:        year,
 		TotalIncome: income,
+		RRSP:        rrsp,
 	}
 	if err != nil {
 		return nil, err
@@ -132,12 +141,13 @@ type RequestBodyModel struct {
 }
 
 type ResponseBodyModel struct {
-	FederalPayableTax  float64           `json:"federal_payable_tax"`
-	FederalTotalTax    float64           `json:"federal_total_tax"`
-	RegionalPayableTax float64           `json:"regional_payable_tax"`
-	RegionalTotalTax   float64           `json:"regional_total_tax"`
-	TaxCredits         TaxCreditModel    `json:"tax_credits"`
-	TaxDeductions      TaxDeductionModel `json:"tax_deductions"`
+	FederalPayableTax  float64           `json:"federalPayableTax"`
+	FederalTotalTax    float64           `json:"federalTotalTax"`
+	RegionalPayableTax float64           `json:"regionalPayableTax"`
+	RegionalTotalTax   float64           `json:"regionalTotalTax"`
+	LeftRRSPRoom       float64           `json:"leftRRSPRoom"`
+	TaxCredits         TaxCreditModel    `json:"taxCredits"`
+	TaxDeductions      TaxDeductionModel `json:"taxDeductions"`
 }
 
 func NewResponseBodyModelFrom(out canadaTaxInfo.Output) ResponseBodyModel {
@@ -146,6 +156,7 @@ func NewResponseBodyModelFrom(out canadaTaxInfo.Output) ResponseBodyModel {
 		FederalTotalTax:    out.FederalTotalTax,
 		RegionalPayableTax: out.RegionalPayableTax,
 		RegionalTotalTax:   out.RegionalTotalTax,
+		LeftRRSPRoom:       out.LeftRRSPRoom,
 		TaxCredits: TaxCreditModel{
 			EIPremium:              out.TaxCredits.EIPremium,
 			CPPBasic:               out.TaxCredits.CanadaPensionPlanBasic,
@@ -161,14 +172,14 @@ func NewResponseBodyModelFrom(out canadaTaxInfo.Output) ResponseBodyModel {
 }
 
 type TaxCreditModel struct {
-	BPAFederal             float64 `json:"basic_personal_amount_federal"`
-	BPARegional            float64 `json:"basic_personal_amount_regional"`
-	CanadaEmploymentAmount float64 `json:"canada_employment_amount"`
-	EIPremium              float64 `json:"employment_insurance_premium"`
-	CPPBasic               float64 `json:"canada_pension_plan_basic"`
+	BPAFederal             float64 `json:"basicPersonalAmountFederal"`
+	BPARegional            float64 `json:"basicPersonalAmountRegional"`
+	CanadaEmploymentAmount float64 `json:"canadaEmploymentAmount"`
+	EIPremium              float64 `json:"employmentInsurancePremium"`
+	CPPBasic               float64 `json:"canadaPensionPlanBasic"`
 }
 
 type TaxDeductionModel struct {
-	CPPFirstAdditional  float64 `json:"canada_pension_plan_first_additional"`
-	CPPSecondAdditional float64 `json:"canada_pension_plan_second_additional"`
+	CPPFirstAdditional  float64 `json:"canadaPensionPlanFirstAdditional"`
+	CPPSecondAdditional float64 `json:"canadaPensionPlanSecondAdditional"`
 }

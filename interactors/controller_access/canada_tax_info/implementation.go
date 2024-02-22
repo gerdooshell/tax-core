@@ -3,6 +3,7 @@ package canadaTaxInfo
 import (
 	"context"
 	"fmt"
+	rrspCalculator "github.com/gerdooshell/tax-core/interactors/internal/registered_retirement_savings_plan"
 	"sync"
 
 	sharedCredits "github.com/gerdooshell/tax-core/interactors/internal/shared_credits"
@@ -17,6 +18,7 @@ func NewCanadaTaxInfo() CanadaTaxInfo {
 		taxCalculator:        taxCalculator.NewTaxInteractor(),
 		creditsCalculator:    sharedCredits.NewTaxCreditInteractor(),
 		deductionsCalculator: sharedDeductions.NewTaxDeductionInteractor(),
+		rrspInteractor:       rrspCalculator.NewRRSPInteractor(),
 	}
 }
 
@@ -24,6 +26,7 @@ type taxInfoImpl struct {
 	taxCalculator        taxCalculator.TaxBracketsInteractor
 	creditsCalculator    sharedCredits.TaxCreditInteractor
 	deductionsCalculator sharedDeductions.TaxDeductionInteractor
+	rrspInteractor       rrspCalculator.RRSPInteractor
 }
 
 func (t *taxInfoImpl) CalculateLegacyTax(ctx context.Context, input *Input) (out Output, err error) {
@@ -31,15 +34,21 @@ func (t *taxInfoImpl) CalculateLegacyTax(ctx context.Context, input *Input) (out
 		err = fmt.Errorf("CalculateLegacyTax error: nil input")
 		return
 	}
+	rrspChan := t.rrspInteractor.GetRRSPMaxContribution(ctx, input.Year, input.TotalIncome)
 	var totalFederalCredits, totalRegionalCredits float64
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go t.calculateLegacyDeductionAndTax(ctx, input, &wg, &out, &err)
 
 	go t.calculateLegacyCredits(ctx, input, &wg, &out, &err, &totalFederalCredits, &totalRegionalCredits)
+	rrsp := <-rrspChan
+	if err = rrsp.Err; err != nil {
+		return
+	}
 	wg.Wait()
 	out.FederalPayableTax = max(mathHelper.RoundFloat64(out.FederalTotalTax-totalFederalCredits, 2), 0)
 	out.RegionalPayableTax = max(mathHelper.RoundFloat64(out.RegionalTotalTax-totalRegionalCredits, 2), 0)
+	out.LeftRRSPRoom = rrsp.MaxContribution - input.RRSP
 	return
 }
 
@@ -51,7 +60,7 @@ func (t *taxInfoImpl) calculateLegacyDeductionAndTax(ctx context.Context, input 
 		*err = deductions.Err
 		return
 	}
-	taxableIncome := input.TotalIncome - deductions.CPPFirstAdditionalEmployee - deductions.CPPSecondAdditionalEmployee
+	taxableIncome := max(input.TotalIncome-deductions.CPPFirstAdditionalEmployee-deductions.CPPSecondAdditionalEmployee-input.RRSP, 0)
 	taxRegionalChan := t.taxCalculator.GetTotalTax(ctx, input.Year, input.Province, taxableIncome)
 	taxFederalChan := t.taxCalculator.GetTotalTax(ctx, input.Year, canada.Federal, taxableIncome)
 	out.TaxDeductions.CPPFirstAdditional = deductions.CPPFirstAdditionalEmployee
