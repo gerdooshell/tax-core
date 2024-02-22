@@ -3,9 +3,8 @@ package canadaTaxMarginCalculator
 import (
 	"context"
 	"errors"
-
-	canadaTaxMrgins "github.com/gerdooshell/tax-core/interactors/internal/tax_margins/canada"
-	marginDS "github.com/gerdooshell/tax-core/interactors/internal/tax_margins/canada/data_structures"
+	canadaTaxMrgins "github.com/gerdooshell/tax-core/interactors/internal/margin_calculator"
+	"github.com/gerdooshell/tax-core/interactors/internal/margin_calculator/data_structures"
 )
 
 type canadaTaxMarginCalculator struct {
@@ -20,9 +19,9 @@ func (c canadaTaxMarginCalculator) GetAllMarginalBrackets(ctx context.Context, i
 		err = errors.New("null marginal input")
 		return
 	}
-	margin := canadaTaxMrgins.NewTaxMarginCa()
-	brackets, err := margin.GetCombinedMarginalBrackets(ctx, marginDS.Input{Year: input.Year, Province: input.Province})
-	if err != nil {
+	margin := canadaTaxMrgins.NewTaxMarginCalculator()
+	brackets := <-margin.GetCombinedMarginalBrackets(ctx, marginDS.Input{Year: input.Year, Province: input.Province})
+	if brackets.Err != nil {
 		return
 	}
 	out.MarginalBrackets = brackets.Brackets

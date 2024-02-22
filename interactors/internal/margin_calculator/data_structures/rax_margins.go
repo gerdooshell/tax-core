@@ -12,4 +12,5 @@ type Input struct {
 
 type Output struct {
 	Brackets []shared.TaxBracket
+	Err      error
 }

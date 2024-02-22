@@ -7,9 +7,10 @@ import (
 )
 
 type RRSPInteractor interface {
+	GetRRSPMaxContribution(ctx context.Context, year int, totalIncome float64) <-chan RRSPContributionOutput
 }
 
-type RRSPOutput struct {
+type RRSPContributionOutput struct {
 	MaxContribution float64
 	Err             error
 }
@@ -24,11 +25,11 @@ type rrspImpl struct {
 	dataProvider dataAccess.RRSPData
 }
 
-func (rrsp *rrspImpl) GetRRSPLimits(ctx context.Context, year int, totalIncome float64) <-chan RRSPOutput {
-	out := make(chan RRSPOutput, 1)
+func (rrsp *rrspImpl) GetRRSPMaxContribution(ctx context.Context, year int, totalIncome float64) <-chan RRSPContributionOutput {
+	out := make(chan RRSPContributionOutput, 1)
 	go func() {
 		defer close(out)
-		rrspOutput := RRSPOutput{}
+		rrspOutput := RRSPContributionOutput{}
 		defer func() { out <- rrspOutput }()
 		rrspChan, errChan := rrsp.dataProvider.GetRRSP(ctx, year)
 		select {

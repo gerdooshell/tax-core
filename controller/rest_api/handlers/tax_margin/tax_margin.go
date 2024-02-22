@@ -92,7 +92,7 @@ func (tc *taxMargin) Process(r *http.Request) *http.Response {
 }
 
 type ResponseBodyModel struct {
-	MarginalBrackets []MarginalBracketModel `json:"marginal_brackets"`
+	MarginalBrackets []MarginalBracketModel `json:"marginalBrackets"`
 }
 
 func NewResponseBodyModelFrom(out canadaTaxMarginCalculator.Output) ResponseBodyModel {

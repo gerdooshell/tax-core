@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gerdooshell/tax-core/controller/rest_api/handlers"
+	optimalRrsp "github.com/gerdooshell/tax-core/controller/rest_api/handlers/optimal_rrsp"
 	taxCalculator "github.com/gerdooshell/tax-core/controller/rest_api/handlers/tax_calculator"
 	taxMargin "github.com/gerdooshell/tax-core/controller/rest_api/handlers/tax_margin"
 
@@ -17,9 +18,11 @@ import (
 
 func ServeHTTP() {
 	muxRouter := mux.NewRouter()
-	apiHandlers := make([]handlers.Handler, 0, 3)
+	apiHandlers := make([]handlers.Handler, 0, 5)
 	apiHandlers = append(apiHandlers, taxCalculator.NewTaxCalculatorController())
 	apiHandlers = append(apiHandlers, taxMargin.NewTaxMarginController())
+	apiHandlers = append(apiHandlers, optimalRrsp.NewOptimalRRSPController())
+	fmt.Println(apiHandlers)
 	for _, handler := range apiHandlers {
 		RegisterMuxHTTP(muxRouter, handler)
 	}
