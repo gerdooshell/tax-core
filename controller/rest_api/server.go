@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	taxCalculator "github.com/gerdooshell/tax-core/controller/rest_api/handlers/tax_calculator"
 	taxMargin "github.com/gerdooshell/tax-core/controller/rest_api/handlers/tax_margin"
 
+	logger "github.com/gerdooshell/tax-logger-client-go"
 	"github.com/gorilla/mux"
 )
 
@@ -93,19 +93,20 @@ func createHTTPHandler(handler handlers.Handler) http.Handler {
 	hf := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				fmt.Println("Recovered fatal error:", rec)
+				logger.FatalFormat("Recovered fatal error: \"%v\"", rec)
 			}
 		}()
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		request, err := handler.ParseArgs(r)
+		logger.InfoFormat("request:\"%v\" from \"%v\"", r.URL, r.RemoteAddr)
+		err := handler.ParseArgs(r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			message := "failed submitting the message"
 			if _, err = w.Write([]byte(fmt.Sprintf("%v. error: %v", message, err))); err != nil {
-				log.Fatalf("Error writing response body to writer. err: %s", err.Error())
+				logger.FatalFormat("Error writing response body to writer. err: %s", err.Error())
 			}
 			return
 		}
@@ -113,13 +114,13 @@ func createHTTPHandler(handler handlers.Handler) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		resp := handler.Process(request)
+		resp := handler.Process(r)
 		w.WriteHeader(resp.StatusCode)
 		if resp != nil && resp.Body != nil {
 			defer resp.Body.Close()
 			body, _ := io.ReadAll(resp.Body)
 			if _, err = w.Write(body); err != nil {
-				log.Fatalf("Error writing response body to writer. err: %s", err.Error())
+				logger.FatalFormat("Error writing response body to writer. err: %s", err.Error())
 			}
 		}
 		return

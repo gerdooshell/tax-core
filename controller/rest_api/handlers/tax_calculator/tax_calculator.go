@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	canadaTaxInfo "github.com/gerdooshell/tax-core/interactors/controller_access/canada_tax_info"
 	"github.com/gerdooshell/tax-core/library/region/canada"
 
+	logger "github.com/gerdooshell/tax-logger-client-go"
 	"github.com/gorilla/mux"
 )
 
@@ -42,41 +44,46 @@ func (tc *taxCalculator) Authorize() error {
 	return nil
 }
 
-func (tc *taxCalculator) ParseArgs(r *http.Request) (*http.Request, error) {
+func (tc *taxCalculator) ParseArgs(r *http.Request) (err error) {
+	defer func() {
+		if err != nil {
+			logger.Error(err.Error())
+		}
+	}()
 	state := State{}
 	pathVars := mux.Vars(r)
 	provinceStr, ok := pathVars["province"]
 	if !ok {
-		return nil, fmt.Errorf("province is not provided")
+		return errors.New("province is not provided")
 	}
-	var err error
 	province, err := canada.GetProvinceFromString(provinceStr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	yearStr, ok := pathVars["year"]
 	if !ok {
-		return nil, fmt.Errorf("year is not provided")
+		return errors.New("year is not provided")
 	}
 	year, err := strconv.Atoi(yearStr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	incomeStr, ok := pathVars["income"]
 	if !ok {
-		return nil, fmt.Errorf("income is not provided")
+		return errors.New("income is not provided")
 	}
 	income, err := strconv.ParseFloat(incomeStr, 64)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	rrspStr, ok := pathVars["rrsp"]
 	if !ok {
-		return nil, fmt.Errorf("rrsp is not provided")
+		return errors.New("rrsp is not provided")
 	}
 	rrsp, err := strconv.ParseFloat(rrspStr, 64)
 	if err != nil {
-		return nil, err
+		logger.Error(err.Error())
+		return err
 	}
 	input := canadaTaxInfo.Input{
 		Province:    province,
@@ -85,16 +92,16 @@ func (tc *taxCalculator) ParseArgs(r *http.Request) (*http.Request, error) {
 		RRSP:        rrsp,
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
 	state.apiKey = r.Header.Get(internal.APIKyeNameID)
 	state.input = &input
-	if err := validateInput(state); err != nil {
-		return nil, err
+	if err = validateInput(state); err != nil {
+		return err
 	}
 	ctx := context.WithValue(r.Context(), "state", state)
-	r = r.WithContext(ctx)
-	return r, nil
+	*r = *(r.WithContext(ctx))
+	return nil
 }
 
 func (tc *taxCalculator) Process(r *http.Request) *http.Response {
@@ -106,6 +113,7 @@ func (tc *taxCalculator) Process(r *http.Request) *http.Response {
 	if err != nil {
 		resp.Body = io.NopCloser(bytes.NewReader([]byte(err.Error())))
 		resp.StatusCode = http.StatusInternalServerError
+		logger.Error(err.Error())
 		return resp
 	}
 	respBody := NewResponseBodyModelFrom(out)
@@ -113,6 +121,7 @@ func (tc *taxCalculator) Process(r *http.Request) *http.Response {
 	if err != nil {
 		resp.Body = io.NopCloser(bytes.NewReader([]byte(err.Error())))
 		resp.StatusCode = http.StatusInternalServerError
+		logger.Error(err.Error())
 		return resp
 	}
 	resp.Body = io.NopCloser(bytes.NewReader(respBodyByte))

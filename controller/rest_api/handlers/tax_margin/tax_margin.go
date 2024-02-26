@@ -4,17 +4,19 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"io"
+	"net/http"
+	"strconv"
+
 	"github.com/gerdooshell/tax-core/controller/internal"
 	"github.com/gerdooshell/tax-core/controller/internal/routes"
 	restApi "github.com/gerdooshell/tax-core/controller/rest_api/handlers"
 	"github.com/gerdooshell/tax-core/entities/canada/shared"
 	canadaTaxMarginCalculator "github.com/gerdooshell/tax-core/interactors/controller_access/canada_tax_margin_calculator"
 	"github.com/gerdooshell/tax-core/library/region/canada"
-	"io"
-	"net/http"
-	"strconv"
 
+	logger "github.com/gerdooshell/tax-logger-client-go"
 	"github.com/gorilla/mux"
 )
 
@@ -41,34 +43,44 @@ func (tc *taxMargin) Authorize() error {
 	return nil
 }
 
-func (tc *taxMargin) ParseArgs(r *http.Request) (*http.Request, error) {
+func (tc *taxMargin) ParseArgs(r *http.Request) (err error) {
+	defer func() {
+		if err != nil {
+			logger.Error(err.Error())
+		}
+	}()
 	state := State{}
 	pathVars := mux.Vars(r)
 	provinceStr, ok := pathVars["province"]
 	if !ok {
-		return nil, fmt.Errorf("province is not provided")
+		return errors.New("province is not provided")
 	}
-	var err error
 	province, err := canada.GetProvinceFromString(provinceStr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	yearStr, ok := pathVars["year"]
 	if !ok {
-		return nil, fmt.Errorf("year is not provided")
+		return errors.New("year is not provided")
 	}
 	year, err := strconv.Atoi(yearStr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	state.input = &canadaTaxMarginCalculator.Input{Year: year, Province: province}
 	state.apiKey = r.Header.Get(internal.APIKyeNameID)
 	ctx := context.WithValue(r.Context(), "state", state)
-	r = r.WithContext(ctx)
-	return r, nil
+	*r = *(r.WithContext(ctx))
+	return nil
 }
 
 func (tc *taxMargin) Process(r *http.Request) *http.Response {
+	var err error
+	defer func() {
+		if err != nil {
+			logger.Error(err.Error())
+		}
+	}()
 	resp := new(http.Response)
 	state := r.Context().Value("state").(State)
 	marginalTax := canadaTaxMarginCalculator.NewCanadaTaxMarginCalculator()
