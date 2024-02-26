@@ -4,7 +4,7 @@ go 1.21.6
 
 require (
 	github.com/gerdooshell/tax-communication/src/data_provider v0.0.0-20240219020344-d1b5c9669706
-	github.com/gerdooshell/tax-logger-client-go v0.0.0-20240226013226-ebfda9bc75e8
+	github.com/gerdooshell/tax-logger-client-go v0.0.0-20240226020903-53b138ed4d49
 	github.com/gorilla/mux v1.8.1
 	google.golang.org/grpc v1.62.0
 )
