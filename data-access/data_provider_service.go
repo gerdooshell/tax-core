@@ -3,6 +3,9 @@ package dataAccess
 import (
 	"context"
 	"fmt"
+	"math"
+	"sync"
+
 	abCredits "github.com/gerdooshell/tax-core/entities/canada/alberta/credits"
 	bcCredits "github.com/gerdooshell/tax-core/entities/canada/bc/credits"
 	federalEntities "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
@@ -10,12 +13,11 @@ import (
 	"github.com/gerdooshell/tax-core/environment"
 	"github.com/gerdooshell/tax-core/library/cache/lrucache"
 	"github.com/gerdooshell/tax-core/library/region/canada"
-	"google.golang.org/grpc/credentials/insecure"
-	"math"
-	"sync"
 
 	dataProvider "github.com/gerdooshell/tax-communication/src/data_provider"
+	logger "github.com/gerdooshell/tax-logger-client-go"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var singletonInstance *dataService
@@ -38,6 +40,9 @@ func GetDataProviderServiceInstance() DataProviderService {
 		dataProviderUrl: getDataProviderUrl(),
 		cache:           lrucache.NewLRUCache[cacheKey](1000),
 		mu:              make(map[string]*sync.Mutex),
+	}
+	if err := singletonInstance.generateDataServiceClient(); err != nil {
+		logger.Error(err.Error())
 	}
 	return singletonInstance
 }
@@ -105,11 +110,6 @@ func (ds *dataService) SaveMarginalTaxBrackets(ctx context.Context, province can
 		defer close(errChan)
 		mu.Lock()
 		defer mu.Unlock()
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
-			return
-		}
 		reqBrackets := make([]*dataProvider.Bracket, 0, len(brackets))
 		for _, bracket := range brackets {
 			reqBrackets = append(reqBrackets, &dataProvider.Bracket{Low: bracket.Low, Rate: bracket.Rate})
@@ -146,11 +146,6 @@ func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntit
 		cppCacheKey := cacheKey{region: canada.Federal, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(cppCacheKey); cacheErr == nil {
 			out <- value.(sharedEntities.CanadaPensionPlan)
-			return
-		}
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
 			return
 		}
 		req := &dataProvider.GetCanadaPensionPlanRequest{
@@ -198,11 +193,6 @@ func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan share
 			out <- value.(sharedEntities.EmploymentInsurancePremium)
 			return
 		}
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
-			return
-		}
 		req := &dataProvider.GetEmploymentInsurancePremiumRequest{
 			Year: int32(year),
 		}
@@ -239,11 +229,6 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan fede
 		bpaCacheKey := cacheKey{region: canada.Federal, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(bpaCacheKey); cacheErr == nil {
 			out <- value.(federalEntities.BasicPersonalAmount)
-			return
-		}
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
 			return
 		}
 		req := &dataProvider.GetFederalBPARequest{
@@ -283,11 +268,6 @@ func (ds *dataService) GetTaxBrackets(ctx context.Context, year int, province ca
 		bracketsCacheKey := cacheKey{region: province, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(bracketsCacheKey); cacheErr == nil {
 			out <- value.([]sharedEntities.TaxBracket)
-			return
-		}
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
 			return
 		}
 		req := &dataProvider.GetTaxBracketsRequest{
@@ -332,11 +312,6 @@ func (ds *dataService) GetCombinedMarginalBrackets(ctx context.Context, year int
 		marginalCacheKey := cacheKey{region: province, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(marginalCacheKey); cacheErr == nil {
 			out <- value.([]sharedEntities.TaxBracket)
-			return
-		}
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
 			return
 		}
 		req := &dataProvider.GetCombinedMarginalBracketsRequest{
@@ -384,11 +359,6 @@ func (ds *dataService) GetCEA(ctx context.Context, year int) (<-chan federalEnti
 			out <- value.(federalEntities.CanadaEmploymentAmount)
 			return
 		}
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
-			return
-		}
 		req := &dataProvider.GetCanadaEmploymentAmountRequest{
 			Year: int32(year),
 		}
@@ -421,11 +391,6 @@ func (ds *dataService) GetBCBPA(ctx context.Context, year int) (<-chan bcCredits
 		bpaCacheKey := cacheKey{region: canada.BritishColumbia, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(bpaCacheKey); cacheErr == nil {
 			out <- value.(bcCredits.BasicPersonalAmount)
-			return
-		}
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
 			return
 		}
 		req := &dataProvider.GetBritishColumbiaBPARequest{
@@ -462,11 +427,6 @@ func (ds *dataService) GetAlbertaBPA(ctx context.Context, year int) (<-chan abCr
 			out <- value.(abCredits.BasicPersonalAmount)
 			return
 		}
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
-			return
-		}
 		req := &dataProvider.GetAlbertaBPARequest{
 			Year: int32(year),
 		}
@@ -500,11 +460,6 @@ func (ds *dataService) GetRRSP(ctx context.Context, year int) (<-chan sharedEnti
 		rrspCacheKey := cacheKey{region: canada.Federal, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(rrspCacheKey); cacheErr == nil {
 			out <- value.(sharedEntities.RRSP)
-			return
-		}
-		err := ds.generateDataServiceClient()
-		if err != nil {
-			errChan <- err
 			return
 		}
 		req := &dataProvider.GetRegisteredRetirementSavingsPlanRequest{

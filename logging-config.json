@@ -1,0 +1,18 @@
+{
+	"Prod": {
+		"ContainsSecretKeys": true,
+		"VaultURL": "https://tax-secrets.vault.azure.net/",
+		"LoggerUrl": "logger-url",
+		"ServiceName": "logger-tax-core-service-name",
+		"APIKey": "logger-tax-core-api-key",
+		"Port": "logger-port"
+	},
+	"Dev": {
+		"ContainsSecretKeys": false,
+		"VaultURL": "",
+		"LoggerUrl": "localhost",
+		"ServiceName": "tax-core",
+		"APIKey": "tax-core-dev",
+		"Port": "47395"
+	}
+}

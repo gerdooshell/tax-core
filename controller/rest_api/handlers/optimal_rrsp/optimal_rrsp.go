@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	logger "github.com/gerdooshell/tax-logger-client-go"
 	"io"
 	"net/http"
 	"strconv"
@@ -42,41 +44,45 @@ func (o optimalRRSPController) Authorize() error {
 	return nil
 }
 
-func (o optimalRRSPController) ParseArgs(r *http.Request) (*http.Request, error) {
+func (o optimalRRSPController) ParseArgs(r *http.Request) (err error) {
+	defer func() {
+		if err != nil {
+			logger.Error(err.Error())
+		}
+	}()
 	reqState := state{}
 	pathVars := mux.Vars(r)
 	provinceStr, ok := pathVars["province"]
 	if !ok {
-		return nil, fmt.Errorf("province is not provided")
+		return errors.New("province is not provided")
 	}
-	var err error
 	province, err := canada.GetProvinceFromString(provinceStr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	yearStr, ok := pathVars["year"]
 	if !ok {
-		return nil, fmt.Errorf("year is not provided")
+		return errors.New("year is not provided")
 	}
 	year, err := strconv.Atoi(yearStr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	incomeStr, ok := pathVars["income"]
 	if !ok {
-		return nil, fmt.Errorf("income is not provided")
+		return errors.New("income is not provided")
 	}
 	income, err := strconv.ParseFloat(incomeStr, 64)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	rrspStr, ok := pathVars["rrsp"]
 	if !ok {
-		return nil, fmt.Errorf("rrsp is not provided")
+		return errors.New("rrsp is not provided")
 	}
 	rrsp, err := strconv.ParseFloat(rrspStr, 64)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	input := rrspInfo.OptimalInput{
@@ -86,19 +92,25 @@ func (o optimalRRSPController) ParseArgs(r *http.Request) (*http.Request, error)
 		ContributedRRSP: rrsp,
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
 	reqState.apiKey = r.Header.Get(internal.APIKyeNameID)
 	reqState.input = &input
-	if err := validateInput(reqState); err != nil {
-		return nil, err
+	if err = validateInput(reqState); err != nil {
+		return err
 	}
 	ctx := context.WithValue(r.Context(), "state", reqState)
-	r = r.WithContext(ctx)
-	return r, nil
+	*r = *(r.WithContext(ctx))
+	return nil
 }
 
 func (o optimalRRSPController) Process(r *http.Request) *http.Response {
+	var err error
+	defer func() {
+		if err != nil {
+			logger.Error(err.Error())
+		}
+	}()
 	resp := new(http.Response)
 	reqState := r.Context().Value("state").(state)
 	ctx := r.Context()
