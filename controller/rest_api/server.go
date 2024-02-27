@@ -22,7 +22,6 @@ func ServeHTTP() {
 	apiHandlers = append(apiHandlers, taxCalculator.NewTaxCalculatorController())
 	apiHandlers = append(apiHandlers, taxMargin.NewTaxMarginController())
 	apiHandlers = append(apiHandlers, optimalRrsp.NewOptimalRRSPController())
-	fmt.Println(apiHandlers)
 	for _, handler := range apiHandlers {
 		RegisterMuxHTTP(muxRouter, handler)
 	}

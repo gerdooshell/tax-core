@@ -28,16 +28,21 @@ func main() {
 	if err := environment.SetEnvironment(env); err != nil {
 		panic(err)
 	}
-
-	if loggingConfFilePath, err := getLoggingConfigFilePath(); err != nil {
-		fmt.Println(err)
-	} else {
-		if err = logger.SetUpLogger(context.Background(), string(env), loggingConfFilePath); err != nil {
-			fmt.Println(err)
-		}
-	}
 	go runGC()
+	setupLogging(env)
 	restApi.ServeHTTP()
+}
+
+func setupLogging(env environment.Environment) {
+	var err error
+	loggingConfFilePath, err := getLoggingConfigFilePath()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if err = logger.SetUpLogger(context.Background(), string(env), loggingConfFilePath); err != nil {
+		fmt.Println(err)
+	}
 }
 
 func getLoggingConfigFilePath() (string, error) {
