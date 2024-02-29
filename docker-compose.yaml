@@ -1,0 +1,85 @@
+version: '3.6'
+
+services:
+  pefco-proxy:
+    image: gerdooshell/pefco-proxy:0.6.3.amd
+    networks:
+      - tax-network
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - tax-core
+      - pefco-ui
+
+  tax-core:
+    image: gerdooshell/tax-core:0.5.13.amd
+    networks:
+      - tax-network
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+    depends_on:
+      - tax-logger
+
+  tax-logger:
+    image: gerdooshell/tax-logger:0.2.0.amd
+    networks:
+      - tax-network
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+
+  data-provider:
+    image: gerdooshell/data-provider:0.5.4.amd
+    networks:
+      - tax-network
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+    depends_on:
+      - tax-logger
+
+  pefco-ui:
+    image: gerdooshell/pefco-ui:0.6.0.amd
+    networks:
+      - tax-network
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=pefco
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - tax-network
+    deploy:
+      update_config:
+        parallelism: 1
+        order: start-first
+    ports:
+      - "5432:5432"
+
+networks:
+  tax-network:
+    driver: overlay
+volumes:
+  pgdata:
