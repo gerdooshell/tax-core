@@ -29,7 +29,7 @@ func main() {
 		panic(err)
 	}
 	go runGC()
-	setupLogging(env)
+	go setupLogging(env)
 	restApi.ServeHTTP()
 }
 
@@ -40,6 +40,7 @@ func setupLogging(env environment.Environment) {
 		fmt.Println(err)
 		return
 	}
+	<-time.After(time.Second * 5)
 	if err = logger.SetUpLogger(context.Background(), string(env), loggingConfFilePath); err != nil {
 		fmt.Println(err)
 	}

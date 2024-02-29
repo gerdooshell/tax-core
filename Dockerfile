@@ -3,6 +3,7 @@ FROM golang:1.21-alpine AS base
 WORKDIR /app
 
 COPY . .
+RUN go mod tidy
 RUN go mod vendor
 RUN go build main.go
 
