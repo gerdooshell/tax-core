@@ -1,16 +1,16 @@
 package dataAccess
 
 import (
-	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
+	dataAccessInteractor "github.com/gerdooshell/tax-core/interactors/data_access"
 )
 
 type DataProviderService interface {
-	dataAccess.TaxMargin
-	dataAccess.FederalBPAData
-	dataAccess.EIPremiumData
-	dataAccess.CanadaEmploymentAmountData
-	dataAccess.CanadaPensionPlanData
-	dataAccess.RegionalBPAData
-	dataAccess.TaxBracketData
-	dataAccess.RRSPData
+	dataAccessInteractor.TaxMargin
+	dataAccessInteractor.FederalBPAData
+	dataAccessInteractor.EIPremiumData
+	dataAccessInteractor.CanadaEmploymentAmountData
+	dataAccessInteractor.CanadaPensionPlanData
+	dataAccessInteractor.RegionalBPAData
+	dataAccessInteractor.TaxBracketData
+	dataAccessInteractor.RRSPData
 }

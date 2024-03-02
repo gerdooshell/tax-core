@@ -2,6 +2,9 @@ package taxCalculator
 
 import (
 	"context"
+	"errors"
+	"time"
+
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
@@ -25,12 +28,14 @@ func NewTaxInteractor() TaxBracketsInteractor {
 	return &totalTaxImpl{
 		dataProvider:      dataProvider.GetDataProviderServiceInstance(),
 		creditsCalculator: sharedCredits.NewTaxCreditInteractor(),
+		timeout:           time.Second * 10,
 	}
 }
 
 type totalTaxImpl struct {
 	dataProvider      dataAccess.TaxBracketData
 	creditsCalculator sharedCredits.TaxCreditInteractor
+	timeout           time.Duration
 }
 
 func (t *totalTaxImpl) GetTotalTax(ctx context.Context, year int, province canada.Province, taxableIncome float64) <-chan TaxOutput {
@@ -91,16 +96,19 @@ func (t *totalTaxImpl) applyTaxBrackets(ctx context.Context, year int, province 
 		defer close(out)
 		totalTaxOutput := TaxOutput{}
 		defer func() { out <- totalTaxOutput }()
-		taxBracketsChan, errChan := t.dataProvider.GetTaxBrackets(ctx, year, province)
+		taxBracketsChan := t.dataProvider.GetTaxBrackets(ctx, year, province)
 		select {
-		case totalTaxOutput.Err = <-errChan:
-			return
-		case taxBrackets := <-taxBracketsChan:
-			taxEntity := sharedEntities.Tax{TaxBrackets: taxBrackets}
+		case taxBracketsDataOut := <-taxBracketsChan:
+			if totalTaxOutput.Err = taxBracketsDataOut.Err; totalTaxOutput.Err != nil {
+				return
+			}
+			taxEntity := sharedEntities.Tax{TaxBrackets: taxBracketsDataOut.TaxBrackets}
 			if err := taxEntity.Calculate(amount, isCredit); err != nil {
 				totalTaxOutput.Err = err
 			}
 			totalTaxOutput.Value = taxEntity.GetValue()
+		case <-time.After(t.timeout):
+			totalTaxOutput.Err = errors.New("get tax brackets data timed out")
 		}
 	}()
 	return out

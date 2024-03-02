@@ -11,6 +11,7 @@ import (
 	federalEntities "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
 	"github.com/gerdooshell/tax-core/environment"
+	dataAccessInteractor "github.com/gerdooshell/tax-core/interactors/data_access"
 	"github.com/gerdooshell/tax-core/library/cache/lrucache"
 	"github.com/gerdooshell/tax-core/library/region/canada"
 
@@ -177,20 +178,20 @@ func (ds *dataService) GetCPP(ctx context.Context, year int) (<-chan sharedEntit
 	return out, errChan
 }
 
-func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan sharedEntities.EmploymentInsurancePremium, <-chan error) {
+func (ds *dataService) GetEIPremium(ctx context.Context, year int) <-chan dataAccessInteractor.EIPremiumDataOut {
 	funcName := "GetEIPremium"
 	ds.registerToMutex(funcName)
-	out := make(chan sharedEntities.EmploymentInsurancePremium, 1)
-	errChan := make(chan error, 1)
+	outChan := make(chan dataAccessInteractor.EIPremiumDataOut, 1)
 	mu, _ := ds.readFromMutex(funcName)
 	go func() {
-		defer close(out)
-		defer close(errChan)
+		defer close(outChan)
+		out := dataAccessInteractor.EIPremiumDataOut{}
+		defer func() { outChan <- out }()
 		mu.Lock()
 		defer mu.Unlock()
 		eipCacheKey := cacheKey{region: canada.Federal, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(eipCacheKey); cacheErr == nil {
-			out <- value.(sharedEntities.EmploymentInsurancePremium)
+			out.EmploymentInsurancePremium = value.(sharedEntities.EmploymentInsurancePremium)
 			return
 		}
 		req := &dataProvider.GetEmploymentInsurancePremiumRequest{
@@ -198,7 +199,7 @@ func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan share
 		}
 		resp, err := ds.grpcClient.GetEmploymentInsurancePremium(ctx, req)
 		if err != nil {
-			errChan <- err
+			out.Err = err
 			return
 		}
 		value := sharedEntities.EmploymentInsurancePremium{
@@ -207,28 +208,28 @@ func (ds *dataService) GetEIPremium(ctx context.Context, year int) (<-chan share
 			EmployerEmployeeContributionRatio: resp.GetEmployerEmployeeContributionRatio(),
 		}
 		if _, err = ds.cache.Add(eipCacheKey, value); err != nil {
-			errChan <- err
+			out.Err = err
 			return
 		}
-		out <- value
+		out.EmploymentInsurancePremium = value
 	}()
-	return out, errChan
+	return outChan
 }
 
-func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan federalEntities.BasicPersonalAmount, <-chan error) {
+func (ds *dataService) GetFederalBPA(ctx context.Context, year int) <-chan dataAccessInteractor.FederalBPADataOut {
 	funcName := "GetFederalBPA"
 	ds.registerToMutex(funcName)
-	out := make(chan federalEntities.BasicPersonalAmount, 1)
-	errChan := make(chan error, 1)
+	out := make(chan dataAccessInteractor.FederalBPADataOut, 1)
 	mu, _ := ds.readFromMutex(funcName)
 	go func() {
 		defer close(out)
-		defer close(errChan)
+		bpaOut := dataAccessInteractor.FederalBPADataOut{}
+		defer func() { out <- bpaOut }()
 		mu.Lock()
 		defer mu.Unlock()
 		bpaCacheKey := cacheKey{region: canada.Federal, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(bpaCacheKey); cacheErr == nil {
-			out <- value.(federalEntities.BasicPersonalAmount)
+			bpaOut.BasicPersonalAmount = value.(federalEntities.BasicPersonalAmount)
 			return
 		}
 		req := &dataProvider.GetFederalBPARequest{
@@ -236,7 +237,7 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan fede
 		}
 		resp, err := ds.grpcClient.GetFederalBPA(ctx, req)
 		if err != nil {
-			errChan <- err
+			bpaOut.Err = err
 			return
 		}
 		value := federalEntities.BasicPersonalAmount{
@@ -246,28 +247,28 @@ func (ds *dataService) GetFederalBPA(ctx context.Context, year int) (<-chan fede
 			MinBPAIncome: resp.GetMinBPAIncome(),
 		}
 		if _, err = ds.cache.Add(bpaCacheKey, value); err != nil {
-			errChan <- err
+			bpaOut.Err = err
 			return
 		}
-		out <- value
+		bpaOut.BasicPersonalAmount = value
 	}()
-	return out, errChan
+	return out
 }
 
-func (ds *dataService) GetTaxBrackets(ctx context.Context, year int, province canada.Province) (<-chan []sharedEntities.TaxBracket, <-chan error) {
+func (ds *dataService) GetTaxBrackets(ctx context.Context, year int, province canada.Province) <-chan dataAccessInteractor.TaxBracketsDataOut {
 	funcName := "GetTaxBrackets"
 	ds.registerToMutex(funcName)
-	out := make(chan []sharedEntities.TaxBracket, 1)
-	errChan := make(chan error, 1)
+	outChan := make(chan dataAccessInteractor.TaxBracketsDataOut, 1)
 	mu, _ := ds.readFromMutex(funcName)
 	go func() {
-		defer close(out)
-		defer close(errChan)
+		defer close(outChan)
+		out := dataAccessInteractor.TaxBracketsDataOut{}
+		defer func() { outChan <- out }()
 		mu.Lock()
 		defer mu.Unlock()
 		bracketsCacheKey := cacheKey{region: province, year: year, resource: funcName}
 		if value, cacheErr := ds.cache.Read(bracketsCacheKey); cacheErr == nil {
-			out <- value.([]sharedEntities.TaxBracket)
+			out.TaxBrackets = value.([]sharedEntities.TaxBracket)
 			return
 		}
 		req := &dataProvider.GetTaxBracketsRequest{
@@ -276,7 +277,7 @@ func (ds *dataService) GetTaxBrackets(ctx context.Context, year int, province ca
 		}
 		resp, err := ds.grpcClient.GetTaxBrackets(ctx, req)
 		if err != nil {
-			errChan <- err
+			out.Err = err
 			return
 		}
 		respBrackets := resp.GetBrackets()
@@ -291,13 +292,14 @@ func (ds *dataService) GetTaxBrackets(ctx context.Context, year int, province ca
 			brackets = append(brackets, bracket)
 		}
 		if _, err = ds.cache.Add(bracketsCacheKey, brackets); err != nil {
-			errChan <- err
+			out.Err = err
 			return
 		}
-		out <- brackets
+		out.TaxBrackets = brackets
 	}()
-	return out, errChan
+	return outChan
 }
+
 func (ds *dataService) GetCombinedMarginalBrackets(ctx context.Context, year int, province canada.Province) (<-chan []sharedEntities.TaxBracket, <-chan error) {
 	funcName := "GetCombinedMarginalBrackets"
 	ds.registerToMutex(funcName)
