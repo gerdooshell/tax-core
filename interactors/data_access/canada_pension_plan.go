@@ -2,9 +2,14 @@ package dataAccess
 
 import (
 	"context"
-	"github.com/gerdooshell/tax-core/entities/canada/shared"
+	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
 )
 
+type CPPDataOut struct {
+	CanadaPensionPlan sharedEntities.CanadaPensionPlan
+	Err               error
+}
+
 type CanadaPensionPlanData interface {
-	GetCPP(ctx context.Context, year int) (<-chan shared.CanadaPensionPlan, <-chan error)
+	GetCPP(ctx context.Context, year int) <-chan CPPDataOut
 }

@@ -7,7 +7,17 @@ import (
 	bcCredits "github.com/gerdooshell/tax-core/entities/canada/bc/credits"
 )
 
+type BritishColumbiaBPADataOut struct {
+	BasicPersonalAmount bcCredits.BasicPersonalAmount
+	Err                 error
+}
+
+type AlbertaBPADataOut struct {
+	BasicPersonalAmount albertaCredits.BasicPersonalAmount
+	Err                 error
+}
+
 type RegionalBPAData interface {
-	GetAlbertaBPA(ctx context.Context, year int) (<-chan albertaCredits.BasicPersonalAmount, <-chan error)
-	GetBCBPA(ctx context.Context, year int) (<-chan bcCredits.BasicPersonalAmount, <-chan error)
+	GetAlbertaBPA(ctx context.Context, year int) <-chan AlbertaBPADataOut
+	GetBritishColumbiaBPA(ctx context.Context, year int) <-chan BritishColumbiaBPADataOut
 }
