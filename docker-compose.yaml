@@ -2,7 +2,7 @@ version: '3.6'
 
 services:
   pefco-proxy:
-    image: gerdooshell/pefco-proxy:0.6.3.amd
+    image: gerdooshell/pefco-proxy:0.6.5.amd
     networks:
       - tax-network
     deploy:
@@ -18,7 +18,7 @@ services:
       - pefco-ui
 
   tax-core:
-    image: gerdooshell/tax-core:0.5.13.amd
+    image: gerdooshell/tax-core:0.5.14.amd
     networks:
       - tax-network
     deploy:
@@ -40,7 +40,7 @@ services:
         order: start-first
 
   data-provider:
-    image: gerdooshell/data-provider:0.5.4.amd
+    image: gerdooshell/data-provider:0.6.0.amd
     networks:
       - tax-network
     deploy:
