@@ -2,6 +2,8 @@ package cppCalculator
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
@@ -28,12 +30,14 @@ type CanadaPensionPlanOutput struct {
 func NewCanadaPensionPlanInteractor() CanadaPensionPlanInteractor {
 	return &canadaPensionPlanImpl{
 		dataProvider: dataProvider.GetDataProviderServiceInstance(),
+		timeout:      time.Second * 10,
 	}
 }
 
 type canadaPensionPlanImpl struct {
 	dataProvider dataAccess.CanadaPensionPlanData
 	cppEntity    sharedEntities.CanadaPensionPlan
+	timeout      time.Duration
 }
 
 func (c *canadaPensionPlanImpl) GetCPPContribution(ctx context.Context, year int, totalIncome float64) <-chan CanadaPensionPlanOutput {
@@ -43,11 +47,14 @@ func (c *canadaPensionPlanImpl) GetCPPContribution(ctx context.Context, year int
 		defer close(out)
 		var cppOutput CanadaPensionPlanOutput
 		defer func() { out <- cppOutput }()
-		cppChan, errChan := c.dataProvider.GetCPP(ctx, year)
+		cppChan := c.dataProvider.GetCPP(ctx, year)
 		select {
-		case cppOutput.Err = <-errChan:
-			return
-		case c.cppEntity = <-cppChan:
+		case cppDataOut := <-cppChan:
+			if cppDataOut.Err != nil {
+				cppOutput.Err = cppDataOut.Err
+				return
+			}
+			c.cppEntity = cppDataOut.CanadaPensionPlan
 			if cppOutput.Err = c.cppEntity.Calculate(totalIncome); cppOutput.Err != nil {
 				return
 			}
@@ -60,6 +67,8 @@ func (c *canadaPensionPlanImpl) GetCPPContribution(ctx context.Context, year int
 			cppOutput.EmployeeSecondAdditional = c.cppEntity.GetCPPSecondAdditionalEmployee()
 			cppOutput.EmployerSecondAdditional = c.cppEntity.GetCPPSecondAdditionalEmployer()
 			cppOutput.SelfEmployedSecondAdditional = c.cppEntity.GetCPPSecondAdditionalSelfEmployed()
+		case <-time.After(c.timeout):
+			cppOutput.Err = errors.New("get cpp data timed out")
 		}
 	}()
 	return out

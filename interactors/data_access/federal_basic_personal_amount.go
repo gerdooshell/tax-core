@@ -2,10 +2,14 @@ package dataAccess
 
 import (
 	"context"
-
-	"github.com/gerdooshell/tax-core/entities/canada/federal/credits"
+	federalCredits "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
 )
 
+type FederalBPADataOut struct {
+	BasicPersonalAmount federalCredits.BasicPersonalAmount
+	Err                 error
+}
+
 type FederalBPAData interface {
-	GetFederalBPA(ctx context.Context, year int) (<-chan credits.BasicPersonalAmount, <-chan error)
+	GetFederalBPA(ctx context.Context, year int) <-chan FederalBPADataOut
 }

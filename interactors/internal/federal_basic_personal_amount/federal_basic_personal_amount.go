@@ -2,6 +2,8 @@ package federalBPA
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
@@ -19,11 +21,13 @@ type FederalBasicPersonalAmountOutput struct {
 func NewFederalBasicPersonalAmountInteractor() FederalBasicPersonalAmountInteractor {
 	return &federalBPAImpl{
 		dataProvider: dataProvider.GetDataProviderServiceInstance(),
+		timeout:      time.Second * 10,
 	}
 }
 
 type federalBPAImpl struct {
 	dataProvider dataAccess.FederalBPAData
+	timeout      time.Duration
 }
 
 func (f *federalBPAImpl) GetFederalBPA(ctx context.Context, year int, totalIncome float64) <-chan FederalBasicPersonalAmountOutput {
@@ -32,15 +36,19 @@ func (f *federalBPAImpl) GetFederalBPA(ctx context.Context, year int, totalIncom
 		defer close(out)
 		federalBPAOutput := FederalBasicPersonalAmountOutput{}
 		defer func() { out <- federalBPAOutput }()
-		bpaChan, errChan := f.dataProvider.GetFederalBPA(ctx, year)
+		bpaChan := f.dataProvider.GetFederalBPA(ctx, year)
 		select {
-		case federalBPAOutput.Err = <-errChan:
+		case <-time.After(f.timeout):
+			federalBPAOutput.Err = errors.New("get federal bpa timed out")
 			return
 		case federalBPA := <-bpaChan:
-			if federalBPAOutput.Err = federalBPA.Calculate(totalIncome); federalBPAOutput.Err != nil {
+			if federalBPAOutput.Err = federalBPA.Err; federalBPAOutput.Err != nil {
 				return
 			}
-			federalBPAOutput.Value = federalBPA.GetValue()
+			if federalBPAOutput.Err = federalBPA.BasicPersonalAmount.Calculate(totalIncome); federalBPAOutput.Err != nil {
+				return
+			}
+			federalBPAOutput.Value = federalBPA.BasicPersonalAmount.GetValue()
 		}
 	}()
 	return out

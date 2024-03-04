@@ -2,10 +2,14 @@ package dataAccess
 
 import (
 	"context"
-
-	"github.com/gerdooshell/tax-core/entities/canada/shared"
+	sharedEntities "github.com/gerdooshell/tax-core/entities/canada/shared"
 )
 
+type EIPremiumDataOut struct {
+	EmploymentInsurancePremium sharedEntities.EmploymentInsurancePremium
+	Err                        error
+}
+
 type EIPremiumData interface {
-	GetEIPremium(ctx context.Context, year int) (<-chan shared.EmploymentInsurancePremium, <-chan error)
+	GetEIPremium(ctx context.Context, year int) <-chan EIPremiumDataOut
 }

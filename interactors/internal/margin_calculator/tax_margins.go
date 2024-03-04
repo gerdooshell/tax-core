@@ -2,9 +2,10 @@ package marginCalculator
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"github.com/gerdooshell/tax-core/interactors/internal/margin_calculator/data_structures"
 	"github.com/gerdooshell/tax-core/library/region/canada"
+	"time"
 
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	"github.com/gerdooshell/tax-core/entities/canada/shared"
@@ -18,6 +19,7 @@ type TaxMarginsInteractor interface {
 func NewTaxMarginCalculator() TaxMarginsInteractor {
 	return &taxMarginsCa{
 		dataProvider: dataProvider.GetDataProviderServiceInstance(),
+		timeout:      time.Second * 10,
 	}
 }
 
@@ -26,6 +28,7 @@ type taxMarginsCa struct {
 	federalTaxBrackets  []shared.TaxBracket
 	regionalTaxBrackets []shared.TaxBracket
 	marginalTaxBrackets shared.TaxMarginalBracket
+	timeout             time.Duration
 }
 
 func (tm *taxMarginsCa) GetCombinedMarginalBrackets(ctx context.Context, input marginDS.Input) <-chan marginDS.Output {
@@ -34,19 +37,21 @@ func (tm *taxMarginsCa) GetCombinedMarginalBrackets(ctx context.Context, input m
 		defer close(out)
 		marginOut := marginDS.Output{}
 		defer func() { out <- marginOut }()
-		bracketsChan, errChan := tm.dataProvider.GetCombinedMarginalBrackets(ctx, input.Year, input.Province)
-		errRegChan := tm.getFederalBrackets(ctx, input)
-		errFedChan := tm.getRegionalBrackets(ctx, input)
+		bracketsChan := tm.dataProvider.GetCombinedMarginalBrackets(ctx, input.Year, input.Province)
 		select {
-		case getError := <-errChan:
-			fmt.Printf("failed getting combined marginal brackets: %v\n", getError)
-		case brackets := <-bracketsChan:
-			if len(brackets) == 0 {
+		case bracketsDataOut := <-bracketsChan:
+			if bracketsDataOut.Err != nil {
+				marginOut.Err = bracketsDataOut.Err
+				return
+			}
+			marginOut.Brackets = bracketsDataOut.TaxBrackets
+			if len(marginOut.Brackets) == 0 {
 				break
 			}
-			marginOut.Brackets = brackets
 			return
 		}
+		errRegChan := tm.getFederalBrackets(ctx, input)
+		errFedChan := tm.getRegionalBrackets(ctx, input)
 		if marginOut.Err = <-errFedChan; marginOut.Err != nil {
 			return
 		}
@@ -59,12 +64,15 @@ func (tm *taxMarginsCa) GetCombinedMarginalBrackets(ctx context.Context, input m
 			return
 		}
 		brackets := tm.marginalTaxBrackets.GetMargins()
-		saveChan, errSaveChan := tm.dataProvider.SaveMarginalTaxBrackets(ctx, input.Province, input.Year, brackets)
+		errChan := tm.dataProvider.SaveMarginalTaxBrackets(ctx, input.Province, input.Year, brackets)
 		select {
-		case marginOut.Err = <-errSaveChan:
+		case marginOut.Err = <-errChan:
+			if marginOut.Err != nil {
+				return
+			}
+		case <-time.After(tm.timeout):
+			marginOut.Err = errors.New("saving marginal tax brackets timed out")
 			return
-		case _ = <-saveChan:
-			fmt.Println("saved to database")
 		}
 		marginOut.Brackets = brackets
 	}()
@@ -77,10 +85,15 @@ func (tm *taxMarginsCa) getFederalBrackets(ctx context.Context, input marginDS.I
 		defer close(errChan)
 		var err error
 		defer func() { errChan <- err }()
-		out, errOut := tm.dataProvider.GetTaxBrackets(ctx, input.Year, canada.Federal)
+		out := tm.dataProvider.GetTaxBrackets(ctx, input.Year, canada.Federal)
 		select {
-		case tm.federalTaxBrackets = <-out:
-		case err = <-errOut:
+		case bracketsDataOut := <-out:
+			if err = bracketsDataOut.Err; err != nil {
+				return
+			}
+			tm.federalTaxBrackets = bracketsDataOut.TaxBrackets
+		case <-time.After(tm.timeout):
+			err = errors.New("get federal brackets data timed out")
 		}
 	}()
 	return errChan
@@ -92,10 +105,15 @@ func (tm *taxMarginsCa) getRegionalBrackets(ctx context.Context, input marginDS.
 		defer close(errChan)
 		var err error
 		defer func() { errChan <- err }()
-		out, errOut := tm.dataProvider.GetTaxBrackets(ctx, input.Year, input.Province)
+		out := tm.dataProvider.GetTaxBrackets(ctx, input.Year, input.Province)
 		select {
-		case tm.regionalTaxBrackets = <-out:
-		case err = <-errOut:
+		case bracketsDataOut := <-out:
+			if err = bracketsDataOut.Err; err != nil {
+				return
+			}
+			tm.regionalTaxBrackets = bracketsDataOut.TaxBrackets
+		case <-time.After(tm.timeout):
+			err = errors.New("get regional brackets data timed out")
 		}
 	}()
 	return errChan

@@ -2,9 +2,11 @@ package ceaCalculator
 
 import (
 	"context"
+	"errors"
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	federalEntities "github.com/gerdooshell/tax-core/entities/canada/federal/credits"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
+	"time"
 )
 
 type CanadaEmploymentAmountInteractor interface {
@@ -19,12 +21,14 @@ type CanadaEmploymentAmountOutput struct {
 func NewCanadaEmploymentAmountInteractor() CanadaEmploymentAmountInteractor {
 	return &canadaEmploymentAmountImpl{
 		dataProvider: dataProvider.GetDataProviderServiceInstance(),
+		timeout:      time.Second * 10,
 	}
 }
 
 type canadaEmploymentAmountImpl struct {
 	dataProvider dataAccess.CanadaEmploymentAmountData
 	ceaEntity    federalEntities.CanadaEmploymentAmount
+	timeout      time.Duration
 }
 
 func (cea *canadaEmploymentAmountImpl) GetCEACredit(ctx context.Context, year int, totalIncome float64) <-chan CanadaEmploymentAmountOutput {
@@ -33,15 +37,21 @@ func (cea *canadaEmploymentAmountImpl) GetCEACredit(ctx context.Context, year in
 		defer close(out)
 		var ceaOutput CanadaEmploymentAmountOutput
 		defer func() { out <- ceaOutput }()
-		ceaChan, errChan := cea.dataProvider.GetCEA(ctx, year)
+		ceaChan := cea.dataProvider.GetCEA(ctx, year)
 		select {
-		case ceaOutput.Err = <-errChan:
-			return
-		case cea.ceaEntity = <-ceaChan:
+
+		case ceaDataOut := <-ceaChan:
+			if ceaDataOut.Err != nil {
+				ceaOutput.Err = ceaDataOut.Err
+				return
+			}
+			cea.ceaEntity = ceaDataOut.CanadaEmploymentAmount
 			if ceaOutput.Err = cea.ceaEntity.Calculate(totalIncome); ceaOutput.Err != nil {
 				return
 			}
 			ceaOutput.Value = cea.ceaEntity.GetEmployeeValue()
+		case <-time.After(cea.timeout):
+			ceaOutput.Err = errors.New("get cea data timed out")
 		}
 	}()
 	return out

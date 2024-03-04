@@ -2,6 +2,9 @@ package rrspCalculator
 
 import (
 	"context"
+	"errors"
+	"time"
+
 	dataProvider "github.com/gerdooshell/tax-core/data-access"
 	dataAccess "github.com/gerdooshell/tax-core/interactors/data_access"
 )
@@ -18,11 +21,13 @@ type RRSPContributionOutput struct {
 func NewRRSPInteractor() RRSPInteractor {
 	return &rrspImpl{
 		dataProvider: dataProvider.GetDataProviderServiceInstance(),
+		timeout:      time.Second * 10,
 	}
 }
 
 type rrspImpl struct {
 	dataProvider dataAccess.RRSPData
+	timeout      time.Duration
 }
 
 func (rrsp *rrspImpl) GetRRSPMaxContribution(ctx context.Context, year int, totalIncome float64) <-chan RRSPContributionOutput {
@@ -31,15 +36,19 @@ func (rrsp *rrspImpl) GetRRSPMaxContribution(ctx context.Context, year int, tota
 		defer close(out)
 		rrspOutput := RRSPContributionOutput{}
 		defer func() { out <- rrspOutput }()
-		rrspChan, errChan := rrsp.dataProvider.GetRRSP(ctx, year)
+		rrspChan := rrsp.dataProvider.GetRRSP(ctx, year)
 		select {
-		case rrspOutput.Err = <-errChan:
-			return
-		case rrspEntity := <-rrspChan:
-			if rrspOutput.Err = rrspEntity.CalculateMaxContribution(totalIncome); rrspOutput.Err != nil {
+		case rrspDataOut := <-rrspChan:
+			if rrspDataOut.Err != nil {
+				rrspOutput.Err = rrspDataOut.Err
 				return
 			}
-			rrspOutput.MaxContribution = rrspEntity.GetContribution()
+			if rrspOutput.Err = rrspDataOut.RRSP.CalculateMaxContribution(totalIncome); rrspOutput.Err != nil {
+				return
+			}
+			rrspOutput.MaxContribution = rrspDataOut.RRSP.GetContribution()
+		case <-time.After(rrsp.timeout):
+			rrspOutput.Err = errors.New("get rrsp data timed out")
 		}
 	}()
 	return out
